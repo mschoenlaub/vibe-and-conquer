@@ -29,6 +29,27 @@ function glResource(type: string): 'merge_requests' | 'issues' {
   return type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
 }
 
+interface GLResult {
+  data: any
+  error: string | null
+}
+
+async function glab(args: string[]): Promise<GLResult> {
+  const proc = Bun.spawn(['glab', ...args], { env: { ...process.env } })
+  const stdout = await new Response(proc.stdout).text()
+  const exitCode = await proc.exited
+  if (exitCode !== 0) {
+    const stderr = await new Response(proc.stderr).text()
+    return { data: null, error: stderr }
+  }
+  if (stdout.trim() === '') return { data: null, error: null }
+  try {
+    return { data: JSON.parse(stdout), error: null }
+  } catch {
+    return { data: null, error: 'Failed to parse glab output' }
+  }
+}
+
 /** Resolve project path, instanceUrl, and gitlabToken from request params + DB. */
 async function resolveProject(
   c: Parameters<Parameters<typeof app.get>[1]>[0]
@@ -46,7 +67,7 @@ async function resolveProject(
     .get()
 
   const instanceUrl = row?.instanceUrl ?? process.env.GITLAB_INSTANCE_URL ?? null
-  const gitlabToken = row?.gitlabToken ?? null
+  const gitlabToken = row?.gitlabToken ?? process.env.GITLAB_TOKEN ?? null
 
   return { projectPath, instanceUrl, gitlabToken }
 }
@@ -70,6 +91,54 @@ app.get('/repo/:namespace/:project', async (c) => {
 
   const data = await fetchGitLabRepoData(resolved.projectPath, resolved.instanceUrl, resolved.gitlabToken)
   return c.json(data)
+})
+
+app.post('/create-repo', async (c) => {
+  const body = await c.req.json()
+  const { name, description, visibility } = body
+
+  if (!name) {
+    return c.json({ error: 'Missing required field: name' }, 400)
+  }
+
+  if (visibility !== 'public' && visibility !== 'private') {
+    return c.json({ error: 'visibility must be "public" or "private"' }, 400)
+  }
+
+  // Get authenticated user to build fullName
+  const userResult = await glab(['api', 'user'])
+  if (userResult.error || !userResult.data?.username) {
+    return c.json({ error: 'Failed to get authenticated GitLab user' }, 500)
+  }
+  const owner = userResult.data.username
+  const fullName = `${owner}/${name}`
+
+  const args = ['repo', 'create', name, `--${visibility}`]
+  if (description) args.push('--description', description)
+
+  const proc = await glab(args)
+  if (proc.error) {
+    return c.json({ error: proc.error }, 500)
+  }
+
+  // Add the newly created repo to the tracked repos DB
+  try {
+    const result = await db.insert(repos).values({
+      owner,
+      name,
+      fullName,
+      description: description || null,
+      color: '#00ff88',
+      provider: 'gitlab',
+    }).returning()
+
+    return c.json({ ok: true, repo: result[0] }, 201)
+  } catch (err: any) {
+    if (err.message?.includes('UNIQUE')) {
+      return c.json({ error: 'Repository already tracked' }, 409)
+    }
+    return c.json({ error: 'Repository created but failed to track it' }, 500)
+  }
 })
 
 // ---------------------------------------------------------------------------
@@ -588,7 +657,7 @@ app.post('/comment', async (c) => {
   const token = row?.gitlabToken ?? null
 
   const encoded = encodeProjectPath(fullName)
-  const resource = glResource(type)
+  const resource = type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
 
   const result = await glabApi(`/projects/${encoded}/${resource}/${number}/notes`, {
     instanceUrl,
@@ -614,18 +683,16 @@ app.post('/assignee', async (c) => {
   const token = row?.gitlabToken ?? null
 
   const encoded = encodeProjectPath(fullName)
-  const resource = glResource(type)
+  const resource = type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
 
-  const [currentResult, userResult] = await Promise.all([
-    glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token }),
-    glabApi(`/users?username=${encodeURIComponent(assignee)}`, { instanceUrl, token }),
-  ])
+  const currentResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token })
   if (currentResult.error) return c.json({ error: currentResult.error }, 500)
 
+  const currentIds: number[] = (currentResult.data?.assignees ?? []).map((u: any) => u.id)
+  const userResult = await glabApi(`/users?username=${encodeURIComponent(assignee)}`, { instanceUrl, token })
   const userId = userResult.data?.[0]?.id
   if (!userId) return c.json({ error: `User '${assignee}' not found` }, 404)
 
-  const currentIds: number[] = (currentResult.data?.assignees ?? []).map((u: any) => u.id)
   if (!currentIds.includes(userId)) currentIds.push(userId)
 
   const updateResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, {
@@ -652,15 +719,14 @@ app.delete('/assignee', async (c) => {
   const token = row?.gitlabToken ?? null
 
   const encoded = encodeProjectPath(fullName)
-  const resource = glResource(type)
+  const resource = type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
 
-  const [currentResult, userResult] = await Promise.all([
-    glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token }),
-    glabApi(`/users?username=${encodeURIComponent(assignee)}`, { instanceUrl, token }),
-  ])
+  const currentResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token })
   if (currentResult.error) return c.json({ error: currentResult.error }, 500)
 
+  const userResult = await glabApi(`/users?username=${encodeURIComponent(assignee)}`, { instanceUrl, token })
   const userId = userResult.data?.[0]?.id
+
   const filteredIds = (currentResult.data?.assignees ?? [])
     .map((u: any) => u.id)
     .filter((id: number) => id !== userId)
