@@ -131,6 +131,20 @@ app.get('/labels/:namespace/:project', async (c) => {
   return c.json(labels)
 })
 
+// GET /api/gitlab/members?path=namespace/project — list project members
+app.get('/members', async (c) => {
+  const resolved = await resolveProject(c)
+  if (!resolved) return c.json({ error: 'Could not resolve project' }, 400)
+  const encoded = encodeProjectPath(resolved.projectPath)
+  const result = await glabApi(`/projects/${encoded}/members/all?per_page=100`, {
+    instanceUrl: resolved.instanceUrl,
+    token: resolved.gitlabToken,
+  })
+  if (result.error) return c.json({ error: result.error }, 500)
+  const members = (result.data ?? []).map((m: any) => ({ login: m.username }))
+  return c.json(members)
+})
+
 // POST /api/gitlab/label — add a label to an MR or issue
 app.post('/label', async (c) => {
   const body = await c.req.json()
@@ -256,32 +270,34 @@ app.get('/branch-compare', async (c) => {
   const base = c.req.query('base') || 'main'
   if (!branch) return c.json({ error: 'branch query param is required' }, 400)
   const encoded = encodeProjectPath(resolved.projectPath)
-  const result = await glabApi(
-    `/projects/${encoded}/repository/compare?from=${encodeURIComponent(base)}&to=${encodeURIComponent(branch)}`,
-    { instanceUrl: resolved.instanceUrl, token: resolved.gitlabToken }
-  )
-  if (result.error) return c.json({ error: result.error }, 500)
-  return c.json({ ahead: result.data?.commits?.length ?? 0, behind: 0 })
+  const opts = { instanceUrl: resolved.instanceUrl, token: resolved.gitlabToken }
+  const [aheadResult, behindResult] = await Promise.all([
+    glabApi(`/projects/${encoded}/repository/compare?from=${encodeURIComponent(base)}&to=${encodeURIComponent(branch)}`, opts),
+    glabApi(`/projects/${encoded}/repository/compare?from=${encodeURIComponent(branch)}&to=${encodeURIComponent(base)}`, opts),
+  ])
+  if (aheadResult.error) return c.json({ error: aheadResult.error }, 500)
+  return c.json({
+    ahead: aheadResult.data?.commits?.length ?? 0,
+    behind: behindResult.data?.commits?.length ?? 0,
+  })
 })
 
 // GET /api/gitlab/branch-compare/:namespace/:project/:branch — ahead/behind vs default branch
 app.get('/branch-compare/:namespace/:project/:branch', async (c) => {
   const resolved = await resolveProject(c)
   if (!resolved) return c.json({ error: 'Could not resolve project' }, 400)
-
   const branch = decodeURIComponent(c.req.param('branch'))
   const base = c.req.query('base') || 'main'
   const encoded = encodeProjectPath(resolved.projectPath)
-
-  const result = await glabApi(
-    `/projects/${encoded}/repository/compare?from=${encodeURIComponent(base)}&to=${encodeURIComponent(branch)}`,
-    { instanceUrl: resolved.instanceUrl, token: resolved.gitlabToken }
-  )
-  if (result.error) return c.json({ error: result.error }, 500)
-
+  const opts = { instanceUrl: resolved.instanceUrl, token: resolved.gitlabToken }
+  const [aheadResult, behindResult] = await Promise.all([
+    glabApi(`/projects/${encoded}/repository/compare?from=${encodeURIComponent(base)}&to=${encodeURIComponent(branch)}`, opts),
+    glabApi(`/projects/${encoded}/repository/compare?from=${encodeURIComponent(branch)}&to=${encodeURIComponent(base)}`, opts),
+  ])
+  if (aheadResult.error) return c.json({ error: aheadResult.error }, 500)
   return c.json({
-    ahead: result.data?.commits?.length ?? 0,
-    behind: 0, // GitLab compare does not return behind count directly
+    ahead: aheadResult.data?.commits?.length ?? 0,
+    behind: behindResult.data?.commits?.length ?? 0,
   })
 })
 
@@ -579,6 +595,132 @@ app.post('/comment', async (c) => {
 
   if (result.error) return c.json({ error: result.error }, 500)
   return c.json({ ok: true })
+})
+
+app.post('/assignee', async (c) => {
+  const body = await c.req.json()
+  const { fullName, number, type, assignee, instanceUrl: bodyInstanceUrl } = body
+
+  if (!fullName || !number || !type || !assignee) {
+    return c.json({ error: 'Missing required fields: fullName, number, type, assignee' }, 400)
+  }
+
+  const row = await db.select().from(repos).where(eq(repos.fullName, fullName)).get()
+  const instanceUrl = bodyInstanceUrl ?? row?.instanceUrl ?? process.env.GITLAB_INSTANCE_URL ?? null
+  const token = row?.gitlabToken ?? null
+
+  const encoded = encodeProjectPath(fullName)
+  const resource = type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
+
+  const currentResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token })
+  if (currentResult.error) return c.json({ error: currentResult.error }, 500)
+
+  const currentIds: number[] = (currentResult.data?.assignees ?? []).map((u: any) => u.id)
+  const userResult = await glabApi(`/users?username=${encodeURIComponent(assignee)}`, { instanceUrl, token })
+  const userId = userResult.data?.[0]?.id
+  if (!userId) return c.json({ error: `User '${assignee}' not found` }, 404)
+
+  if (!currentIds.includes(userId)) currentIds.push(userId)
+
+  const updateResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, {
+    instanceUrl,
+    token,
+    method: 'PUT',
+    body: { assignee_ids: currentIds },
+  })
+  if (updateResult.error) return c.json({ error: updateResult.error }, 500)
+
+  return c.json({ ok: true })
+})
+
+app.delete('/assignee', async (c) => {
+  const body = await c.req.json()
+  const { fullName, number, type, assignee, instanceUrl: bodyInstanceUrl } = body
+
+  if (!fullName || !number || !type || !assignee) {
+    return c.json({ error: 'Missing required fields: fullName, number, type, assignee' }, 400)
+  }
+
+  const row = await db.select().from(repos).where(eq(repos.fullName, fullName)).get()
+  const instanceUrl = bodyInstanceUrl ?? row?.instanceUrl ?? process.env.GITLAB_INSTANCE_URL ?? null
+  const token = row?.gitlabToken ?? null
+
+  const encoded = encodeProjectPath(fullName)
+  const resource = type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
+
+  const currentResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token })
+  if (currentResult.error) return c.json({ error: currentResult.error }, 500)
+
+  const userResult = await glabApi(`/users?username=${encodeURIComponent(assignee)}`, { instanceUrl, token })
+  const userId = userResult.data?.[0]?.id
+
+  const filteredIds = (currentResult.data?.assignees ?? [])
+    .map((u: any) => u.id)
+    .filter((id: number) => id !== userId)
+
+  const updateResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, {
+    instanceUrl,
+    token,
+    method: 'PUT',
+    body: { assignee_ids: filteredIds },
+  })
+  if (updateResult.error) return c.json({ error: updateResult.error }, 500)
+
+  return c.json({ ok: true })
+})
+
+app.get('/feed', async (c) => {
+  const globalToken = process.env.GITLAB_TOKEN ?? null
+  const globalInstance = process.env.GITLAB_INSTANCE_URL ?? null
+  const opts = { instanceUrl: globalInstance, token: globalToken }
+
+  const userResult = await glabApi('/user', opts)
+  if (userResult.error) return c.json({ mentions: [], error: userResult.error })
+  const username = userResult.data?.username
+  if (!username) return c.json({ mentions: [], error: 'Could not determine GitLab user' })
+
+  const [reviewerMRs, assignedIssues] = await Promise.all([
+    glabApi(`/merge_requests?state=opened&scope=all&reviewer_username=${encodeURIComponent(username)}&per_page=50`, opts),
+    glabApi(`/issues?state=opened&scope=all&assignee_username=${encodeURIComponent(username)}&per_page=50`, opts),
+  ])
+
+  const mentions: any[] = []
+
+  for (const mr of reviewerMRs.data ?? []) {
+    const repoPath = mr.references?.full?.split('!')[0] ?? mr.web_url?.split('/-/')[0]?.replace(/^https?:\/\/[^/]+\//, '') ?? ''
+    mentions.push({
+      type: 'pr',
+      feedCategory: 'mention',
+      number: mr.iid,
+      title: mr.title,
+      url: mr.web_url,
+      repo: repoPath,
+      author: mr.author?.username ?? 'unknown',
+      updatedAt: mr.updated_at ?? '',
+      labels: (mr.labels ?? []).map((name: string) => ({ name, color: '6366f1' })),
+      isDraft: mr.draft ?? mr.work_in_progress ?? false,
+      state: mr.state ?? 'opened',
+    })
+  }
+
+  for (const issue of assignedIssues.data ?? []) {
+    const repoPath = issue.references?.full?.split('#')[0] ?? issue.web_url?.split('/-/')[0]?.replace(/^https?:\/\/[^/]+\//, '') ?? ''
+    mentions.push({
+      type: 'issue',
+      feedCategory: 'mention',
+      number: issue.iid,
+      title: issue.title,
+      url: issue.web_url,
+      repo: repoPath,
+      author: issue.author?.username ?? 'unknown',
+      updatedAt: issue.updated_at ?? '',
+      labels: (issue.labels ?? []).map((name: string) => ({ name, color: '6366f1' })),
+      state: issue.state ?? 'opened',
+    })
+  }
+
+  mentions.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  return c.json({ mentions })
 })
 
 // ---------------------------------------------------------------------------

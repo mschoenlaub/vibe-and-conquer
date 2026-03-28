@@ -431,6 +431,31 @@ export const api = {
   getGitLabRepoData: (fullName: string) =>
     request<RepoData>(`/gitlab/repo?path=${encodeURIComponent(fullName)}`),
 
+  getGitLabCollaborators: (fullName: string) =>
+    request<{ login: string }[]>(`/gitlab/members?path=${encodeURIComponent(fullName)}`),
+
+  addGitLabAssignee: (params: {
+    fullName: string
+    number: number
+    type: 'mr' | 'issue'
+    assignee: string
+  }) =>
+    request<{ ok: boolean }>('/gitlab/assignee', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+
+  removeGitLabAssignee: (params: {
+    fullName: string
+    number: number
+    type: 'mr' | 'issue'
+    assignee: string
+  }) =>
+    request<{ ok: boolean }>('/gitlab/assignee', {
+      method: 'DELETE',
+      body: JSON.stringify(params),
+    }),
+
   getGitLabLabels: (fullName: string) =>
     request<GHLabel[]>(`/gitlab/labels?path=${encodeURIComponent(fullName)}`),
 
@@ -495,6 +520,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(params),
     }),
+
+  getGitLabFeed: () => request<FeedData>('/gitlab/feed'),
 
   createGitLabMR: (params: {
     fullName: string

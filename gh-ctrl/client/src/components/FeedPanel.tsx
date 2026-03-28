@@ -64,8 +64,15 @@ export function FeedPanel({ entries, isOpen, onClose }: FeedPanelProps) {
   const fetchMentions = useCallback(() => {
     setMentionsLoading(true)
     setMentionsError(null)
-    api.getFeed()
-      .then((data) => setMentions(data.mentions))
+    Promise.all([
+      api.getFeed().catch(() => ({ mentions: [] })),
+      api.getGitLabFeed().catch(() => ({ mentions: [] })),
+    ])
+      .then(([ghData, glData]) => {
+        const all = [...(ghData.mentions || []), ...(glData.mentions || [])]
+        all.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        setMentions(all)
+      })
       .catch((err) => setMentionsError(err.message ?? 'Failed to load mentions'))
       .finally(() => setMentionsLoading(false))
   }, [])
@@ -78,35 +85,51 @@ export function FeedPanel({ entries, isOpen, onClose }: FeedPanelProps) {
 
   // Aggregate open issues from all entries
   const allIssues: FeedItem[] = entries.flatMap((entry) =>
-    entry.data.issues.map((issue) => ({
-      type: 'issue' as const,
-      feedCategory: 'issue' as const,
-      number: issue.number,
-      title: issue.title,
-      url: `https://github.com/${entry.repo.fullName}/issues/${issue.number}`,
-      repo: entry.repo.fullName,
-      author: issue.author?.login ?? 'unknown',
-      updatedAt: issue.updatedAt,
-      labels: issue.labels,
-      state: issue.state,
-    }))
+    entry.data.issues.map((issue) => {
+      const base = entry.repo.provider === 'gitlab'
+        ? (entry.repo.instanceUrl ?? 'https://gitlab.com')
+        : 'https://github.com'
+      const path = entry.repo.provider === 'gitlab'
+        ? `/${entry.repo.fullName}/-/issues/${issue.number}`
+        : `/${entry.repo.fullName}/issues/${issue.number}`
+      return {
+        type: 'issue' as const,
+        feedCategory: 'issue' as const,
+        number: issue.number,
+        title: issue.title,
+        url: `${base}${path}`,
+        repo: entry.repo.fullName,
+        author: issue.author?.login ?? 'unknown',
+        updatedAt: issue.updatedAt,
+        labels: issue.labels,
+        state: issue.state,
+      }
+    })
   ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
 
   // Aggregate open PRs from all entries
   const allPRs: FeedItem[] = entries.flatMap((entry) =>
-    entry.data.prs.map((pr) => ({
-      type: 'pr' as const,
-      feedCategory: 'pr' as const,
-      number: pr.number,
-      title: pr.title,
-      url: `https://github.com/${entry.repo.fullName}/pull/${pr.number}`,
-      repo: entry.repo.fullName,
-      author: pr.author?.login ?? 'unknown',
-      updatedAt: pr.updatedAt,
-      labels: pr.labels,
-      isDraft: pr.isDraft,
-      state: pr.state,
-    }))
+    entry.data.prs.map((pr) => {
+      const base = entry.repo.provider === 'gitlab'
+        ? (entry.repo.instanceUrl ?? 'https://gitlab.com')
+        : 'https://github.com'
+      const path = entry.repo.provider === 'gitlab'
+        ? `/${entry.repo.fullName}/-/merge_requests/${pr.number}`
+        : `/${entry.repo.fullName}/pull/${pr.number}`
+      return {
+        type: 'pr' as const,
+        feedCategory: 'pr' as const,
+        number: pr.number,
+        title: pr.title,
+        url: `${base}${path}`,
+        repo: entry.repo.fullName,
+        author: pr.author?.login ?? 'unknown',
+        updatedAt: pr.updatedAt,
+        labels: pr.labels,
+        isDraft: pr.isDraft,
+        state: pr.state,
+      }
+    })
   ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
 
   const tabCounts = {
