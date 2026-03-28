@@ -7,6 +7,11 @@ import { VoiceButton } from './VoiceButton'
 import { CloseIcon, LabelIcon, CommentIcon, CopyIcon } from './Icons'
 import { useAppStore } from '../store'
 
+/** Map a GitHub-style type to its GitLab equivalent. */
+function toGlType(type: 'pr' | 'issue'): 'mr' | 'issue' {
+  return type === 'pr' ? 'mr' : 'issue'
+}
+
 export type ModalState =
   | { mode: 'comment'; fullName: string; number: number; type: 'pr' | 'issue'; provider?: 'github' | 'gitlab' }
   | { mode: 'label'; fullName: string; number: number; type: 'pr' | 'issue'; currentLabels: string[]; provider?: 'github' | 'gitlab' }
@@ -87,7 +92,7 @@ function CommentForm({ state, onClose, onSuccess, onError }: {
     setSubmitting(true)
     try {
       if (state.provider === 'gitlab') {
-        await api.postGitLabComment({ fullName: state.fullName, number: state.number, type: state.type === 'pr' ? 'mr' : 'issue', comment: comment.trim() })
+        await api.postGitLabComment({ fullName: state.fullName, number: state.number, type: toGlType(state.type), comment: comment.trim() })
       } else {
         await api.postComment({ fullName: state.fullName, number: state.number, type: state.type, comment: comment.trim() })
       }
@@ -167,7 +172,7 @@ function LabelForm({ state, onClose, onSuccess, onError }: {
       const toAdd = [...selected].filter((l) => !original.has(l))
       const toRemove = [...original].filter((l) => !selected.has(l))
 
-      const glType = state.type === 'pr' ? 'mr' : 'issue'
+      const glType = toGlType(state.type)
       await Promise.all([
         ...toAdd.map((label) => state.provider === 'gitlab'
           ? api.addGitLabLabel({ fullName: state.fullName, number: state.number, type: glType, label })
@@ -263,8 +268,8 @@ function AssigneeForm({ state, onClose, onSuccess, onError }: {
 
       if (state.provider === 'gitlab') {
         await Promise.all([
-          ...toAdd.map((assignee) => api.addGitLabAssignee({ fullName: state.fullName, number: state.number, type: state.type === 'pr' ? 'mr' : state.type, assignee })),
-          ...toRemove.map((assignee) => api.removeGitLabAssignee({ fullName: state.fullName, number: state.number, type: state.type === 'pr' ? 'mr' : state.type, assignee })),
+          ...toAdd.map((assignee) => api.addGitLabAssignee({ fullName: state.fullName, number: state.number, type: toGlType(state.type), assignee })),
+          ...toRemove.map((assignee) => api.removeGitLabAssignee({ fullName: state.fullName, number: state.number, type: toGlType(state.type), assignee })),
         ])
       } else {
         await Promise.all([
@@ -750,7 +755,7 @@ function AssignForm({ state, onClose, onSuccess, onError }: {
           toAdd.map((assignee) => api.addGitLabAssignee({
             fullName: state.fullName,
             number: state.number,
-            type: state.type === 'pr' ? 'mr' : state.type,
+            type: toGlType(state.type),
             assignee,
           }))
         )

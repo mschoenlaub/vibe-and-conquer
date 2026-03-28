@@ -25,6 +25,10 @@ import {
 
 const app = new Hono()
 
+function glResource(type: string): 'merge_requests' | 'issues' {
+  return type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
+}
+
 /** Resolve project path, instanceUrl, and gitlabToken from request params + DB. */
 async function resolveProject(
   c: Parameters<Parameters<typeof app.get>[1]>[0]
@@ -159,7 +163,7 @@ app.post('/label', async (c) => {
   const token = row?.gitlabToken ?? null
 
   const encoded = encodeProjectPath(fullName)
-  const resource = type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
+  const resource = glResource(type)
 
   // Fetch current labels first
   const currentResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token })
@@ -193,7 +197,7 @@ app.delete('/label', async (c) => {
   const token = row?.gitlabToken ?? null
 
   const encoded = encodeProjectPath(fullName)
-  const resource = type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
+  const resource = glResource(type)
 
   // Fetch current labels first
   const currentResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token })
@@ -584,7 +588,7 @@ app.post('/comment', async (c) => {
   const token = row?.gitlabToken ?? null
 
   const encoded = encodeProjectPath(fullName)
-  const resource = type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
+  const resource = glResource(type)
 
   const result = await glabApi(`/projects/${encoded}/${resource}/${number}/notes`, {
     instanceUrl,
@@ -610,16 +614,18 @@ app.post('/assignee', async (c) => {
   const token = row?.gitlabToken ?? null
 
   const encoded = encodeProjectPath(fullName)
-  const resource = type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
+  const resource = glResource(type)
 
-  const currentResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token })
+  const [currentResult, userResult] = await Promise.all([
+    glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token }),
+    glabApi(`/users?username=${encodeURIComponent(assignee)}`, { instanceUrl, token }),
+  ])
   if (currentResult.error) return c.json({ error: currentResult.error }, 500)
 
-  const currentIds: number[] = (currentResult.data?.assignees ?? []).map((u: any) => u.id)
-  const userResult = await glabApi(`/users?username=${encodeURIComponent(assignee)}`, { instanceUrl, token })
   const userId = userResult.data?.[0]?.id
   if (!userId) return c.json({ error: `User '${assignee}' not found` }, 404)
 
+  const currentIds: number[] = (currentResult.data?.assignees ?? []).map((u: any) => u.id)
   if (!currentIds.includes(userId)) currentIds.push(userId)
 
   const updateResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, {
@@ -646,14 +652,15 @@ app.delete('/assignee', async (c) => {
   const token = row?.gitlabToken ?? null
 
   const encoded = encodeProjectPath(fullName)
-  const resource = type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
+  const resource = glResource(type)
 
-  const currentResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token })
+  const [currentResult, userResult] = await Promise.all([
+    glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token }),
+    glabApi(`/users?username=${encodeURIComponent(assignee)}`, { instanceUrl, token }),
+  ])
   if (currentResult.error) return c.json({ error: currentResult.error }, 500)
 
-  const userResult = await glabApi(`/users?username=${encodeURIComponent(assignee)}`, { instanceUrl, token })
   const userId = userResult.data?.[0]?.id
-
   const filteredIds = (currentResult.data?.assignees ?? [])
     .map((u: any) => u.id)
     .filter((id: number) => id !== userId)

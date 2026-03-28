@@ -1,9 +1,17 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { DashboardEntry, FeedItem } from '../types'
 import { api } from '../api'
 import { SidePanel } from './SidePanel'
 
 type FeedTab = 'mentions' | 'issues' | 'prs'
+
+function buildItemUrl(repo: DashboardEntry['repo'], type: 'issue' | 'pr', number: number): string {
+  const base = repo.provider === 'gitlab' ? (repo.instanceUrl ?? 'https://gitlab.com') : 'https://github.com'
+  const path = repo.provider === 'gitlab'
+    ? `/${repo.fullName}/-/${type === 'pr' ? 'merge_requests' : 'issues'}/${number}`
+    : `/${repo.fullName}/${type === 'pr' ? 'pull' : 'issues'}/${number}`
+  return `${base}${path}`
+}
 
 interface FeedPanelProps {
   entries: DashboardEntry[]
@@ -65,15 +73,14 @@ export function FeedPanel({ entries, isOpen, onClose }: FeedPanelProps) {
     setMentionsLoading(true)
     setMentionsError(null)
     Promise.all([
-      api.getFeed().catch(() => ({ mentions: [] })),
-      api.getGitLabFeed().catch(() => ({ mentions: [] })),
+      api.getFeed().catch(() => ({ mentions: [] as FeedItem[] })),
+      api.getGitLabFeed().catch(() => ({ mentions: [] as FeedItem[] })),
     ])
       .then(([ghData, glData]) => {
         const all = [...(ghData.mentions || []), ...(glData.mentions || [])]
         all.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
         setMentions(all)
       })
-      .catch((err) => setMentionsError(err.message ?? 'Failed to load mentions'))
       .finally(() => setMentionsLoading(false))
   }, [])
 
@@ -84,53 +91,43 @@ export function FeedPanel({ entries, isOpen, onClose }: FeedPanelProps) {
   }, [isOpen, activeTab, fetchMentions])
 
   // Aggregate open issues from all entries
-  const allIssues: FeedItem[] = entries.flatMap((entry) =>
-    entry.data.issues.map((issue) => {
-      const base = entry.repo.provider === 'gitlab'
-        ? (entry.repo.instanceUrl ?? 'https://gitlab.com')
-        : 'https://github.com'
-      const path = entry.repo.provider === 'gitlab'
-        ? `/${entry.repo.fullName}/-/issues/${issue.number}`
-        : `/${entry.repo.fullName}/issues/${issue.number}`
-      return {
+  const allIssues = useMemo<FeedItem[]>(() =>
+    entries.flatMap((entry) =>
+      entry.data.issues.map((issue) => ({
         type: 'issue' as const,
         feedCategory: 'issue' as const,
         number: issue.number,
         title: issue.title,
-        url: `${base}${path}`,
+        url: buildItemUrl(entry.repo, 'issue', issue.number),
         repo: entry.repo.fullName,
         author: issue.author?.login ?? 'unknown',
         updatedAt: issue.updatedAt,
         labels: issue.labels,
         state: issue.state,
-      }
-    })
-  ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      }))
+    ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+    [entries]
+  )
 
   // Aggregate open PRs from all entries
-  const allPRs: FeedItem[] = entries.flatMap((entry) =>
-    entry.data.prs.map((pr) => {
-      const base = entry.repo.provider === 'gitlab'
-        ? (entry.repo.instanceUrl ?? 'https://gitlab.com')
-        : 'https://github.com'
-      const path = entry.repo.provider === 'gitlab'
-        ? `/${entry.repo.fullName}/-/merge_requests/${pr.number}`
-        : `/${entry.repo.fullName}/pull/${pr.number}`
-      return {
+  const allPRs = useMemo<FeedItem[]>(() =>
+    entries.flatMap((entry) =>
+      entry.data.prs.map((pr) => ({
         type: 'pr' as const,
         feedCategory: 'pr' as const,
         number: pr.number,
         title: pr.title,
-        url: `${base}${path}`,
+        url: buildItemUrl(entry.repo, 'pr', pr.number),
         repo: entry.repo.fullName,
         author: pr.author?.login ?? 'unknown',
         updatedAt: pr.updatedAt,
         labels: pr.labels,
         isDraft: pr.isDraft,
         state: pr.state,
-      }
-    })
-  ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      }))
+    ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+    [entries]
+  )
 
   const tabCounts = {
     mentions: mentions.length,
