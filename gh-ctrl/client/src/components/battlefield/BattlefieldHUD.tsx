@@ -27,6 +27,8 @@ interface BattlefieldHUDProps {
   onZoomIn: () => void
   onZoomOut: () => void
   onZoomReset: () => void
+  onToggleShortcuts: () => void
+  showShortcuts: boolean
 }
 
 export function BattlefieldHUD({
@@ -54,6 +56,8 @@ export function BattlefieldHUD({
   onZoomIn,
   onZoomOut,
   onZoomReset,
+  onToggleShortcuts,
+  showShortcuts,
 }: BattlefieldHUDProps) {
   return (
     <div className="battlefield-hud">
@@ -145,9 +149,17 @@ export function BattlefieldHUD({
           ⏱<span className="hud-label"> TIMERS</span>
         </button>
         <span className="hud-zoom-sep" />
-        <button className="hud-btn hud-zoom-btn" onClick={onZoomOut} disabled={zoom <= ZOOM_MIN} title="Zoom out">−</button>
-        <span className="hud-zoom-level" title="Click to reset zoom" onClick={onZoomReset}>{Math.round(zoom * 100)}%</span>
-        <button className="hud-btn hud-zoom-btn" onClick={onZoomIn} disabled={zoom >= ZOOM_MAX} title="Zoom in">+</button>
+        <button className="hud-btn hud-zoom-btn" onClick={onZoomOut} disabled={zoom <= ZOOM_MIN} title="Zoom out [−]">−</button>
+        <span className="hud-zoom-level" title="Click to reset zoom [0]" onClick={onZoomReset}>{Math.round(zoom * 100)}%</span>
+        <button className="hud-btn hud-zoom-btn" onClick={onZoomIn} disabled={zoom >= ZOOM_MAX} title="Zoom in [+]">+</button>
+        <span className="hud-zoom-sep" />
+        <button
+          className={`hud-btn${showShortcuts ? ' active' : ''}`}
+          onClick={onToggleShortcuts}
+          title="Keyboard Shortcuts [?]"
+        >
+          ⌨<span className="hud-label"> KEYS</span>
+        </button>
       </div>
     </div>
   )
