@@ -21,9 +21,11 @@ import { BattlefieldHUD } from './battlefield/BattlefieldHUD'
 import { BattlefieldMapLayer } from './battlefield/BattlefieldMapLayer'
 import { BattlefieldMinimap } from './battlefield/BattlefieldMinimap'
 import { LoadBattlefieldMapDialog } from './battlefield/LoadBattlefieldMapDialog'
+import { BattlefieldShortcutsOverlay } from './battlefield/BattlefieldShortcutsOverlay'
 import { useBattlefieldCamera } from '../hooks/useBattlefieldCamera'
 import { useBattlefieldPositions } from '../hooks/useBattlefieldPositions'
 import { useBattlefieldDraggables } from '../hooks/useBattlefieldDraggables'
+import { useBattlefieldKeyboardShortcuts } from '../hooks/useBattlefieldKeyboardShortcuts'
 import type { Position } from './battlefield/battlefieldConstants'
 import { savePositions, loadActiveMapId, saveActiveMapId } from './battlefield/battlefieldStorage'
 
@@ -74,10 +76,37 @@ export function BattlefieldView() {
   const [showBadgeLibrary, setShowBadgeLibrary] = useState(false)
   const [showTimers, setShowTimers] = useState(false)
   const [placingBadge, setPlacingBadge] = useState<Badge | null>(null)
+  const [showShortcuts, setShowShortcuts] = useState(false)
 
   const autoScanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { play } = useSound()
+
+  const handlePan = useCallback((dx: number, dy: number) => {
+    setOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }))
+  }, [setOffset])
+
+  const handleToggleShortcuts = useCallback(() => {
+    play('peep')
+    setShowShortcuts(v => !v)
+  }, [play])
+
+  const keyboardShortcuts = useBattlefieldKeyboardShortcuts({
+    entries,
+    buildings: storeBuildings,
+    positions,
+    buildingPositions,
+    onZoomIn: handleZoomIn,
+    onZoomOut: handleZoomOut,
+    onZoomReset: () => handleZoomReset(positions),
+    onZoomToBase: handleZoomToBase,
+    onScan: () => { play('peep'); onRefresh() },
+    onToggleFeed: () => { play('peep'); setShowFeedPanel(v => !v); setBranchSiloEntry(null); setDetailEntry(null); setSelectedBuildingId(null) },
+    onToggleTimers: () => { play('peep'); setShowTimers(v => !v) },
+    onPan: handlePan,
+    onToggleShortcutsOverlay: handleToggleShortcuts,
+    enabled: !placementMode && !placingBadge,
+  })
 
   const prevLoadingRef = useRef(loading)
   useEffect(() => {
@@ -360,6 +389,8 @@ export function BattlefieldView() {
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onZoomReset={() => handleZoomReset(positions)}
+        onToggleShortcuts={handleToggleShortcuts}
+        showShortcuts={showShortcuts}
       />
 
       <BattlefieldMapLayer
@@ -524,6 +555,19 @@ export function BattlefieldView() {
         isOpen={showTimers}
         onClose={() => setShowTimers(false)}
       />
+
+      {showShortcuts && (
+        <BattlefieldShortcutsOverlay
+          entries={visibleEntries}
+          buildings={storeBuildings}
+          shortcuts={keyboardShortcuts.shortcuts}
+          assigningFor={keyboardShortcuts.assigningFor}
+          onClose={() => setShowShortcuts(false)}
+          onStartAssigning={keyboardShortcuts.startAssigning}
+          onClearShortcut={keyboardShortcuts.clearShortcut}
+          onCancelAssigning={keyboardShortcuts.cancelAssigning}
+        />
+      )}
 
       <BranchSiloPanel
         entry={branchSiloEntry}
