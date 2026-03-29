@@ -108,10 +108,10 @@ export function useBattlefieldKeyboardShortcuts({
 
     const onKeyDown = (e: KeyboardEvent) => {
       // Don't fire if typing in an input/textarea
-      const tag = (e.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable || target.getAttribute?.('contenteditable') === 'true') return
       // Don't fire if a modal/dialog is open
-      if ((e.target as HTMLElement).closest('.modal-overlay, .map-dialog-overlay, [class*="dialog"], [class*="overlay"]')) return
+      if (target.closest?.('.modal-overlay, .map-dialog-overlay, [class*="dialog"], [class*="overlay"]')) return
 
       // Handle assignment mode
       if (assigningFor) {

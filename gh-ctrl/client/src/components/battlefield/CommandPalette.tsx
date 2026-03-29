@@ -201,7 +201,7 @@ export function CommandPalette({
   // Scroll selected item into view
   useEffect(() => {
     const item = listRef.current?.children[selectedIndex] as HTMLElement | undefined
-    item?.scrollIntoView({ block: 'nearest' })
+    item?.scrollIntoView?.({ block: 'nearest' })
   }, [selectedIndex])
 
   const executeCommand = useCallback((cmd: PaletteCommand) => {
