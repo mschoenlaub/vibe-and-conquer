@@ -332,7 +332,7 @@ describe('useBattlefieldKeyboardShortcuts', () => {
     const opts = defaultOptions()
     renderHook(() => useBattlefieldKeyboardShortcuts(opts))
     const div = document.createElement('div')
-    div.contentEditable = 'true'
+    div.setAttribute('contenteditable', 'true')
     document.body.appendChild(div)
     div.dispatchEvent(new KeyboardEvent('keydown', { key: '+', bubbles: true, cancelable: true }))
     document.body.removeChild(div)
