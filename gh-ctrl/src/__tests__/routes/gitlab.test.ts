@@ -35,7 +35,7 @@ describe('GET /instances', () => {
     ;(Bun as any).spawn = (cmd: string[]) => {
       if (cmd[0] === 'glab' && cmd[1] === 'auth' && cmd[2] === 'status') {
         return {
-          stdout: new ReadableStream({
+          stderr: new ReadableStream({
             start(controller) {
               controller.enqueue(new TextEncoder().encode(sampleOutput))
               controller.close()
@@ -44,7 +44,7 @@ describe('GET /instances', () => {
           exited: Promise.resolve(0),
         }
       }
-      return { stdout: new ReadableStream({ start(c) { c.close() } }), exited: Promise.resolve(1) }
+      return { stderr: new ReadableStream({ start(c) { c.close() } }), exited: Promise.resolve(1) }
     }
 
     const res = await app.request('/instances')
@@ -67,7 +67,7 @@ gitlab.example.com
 `
 
     ;(Bun as any).spawn = () => ({
-      stdout: new ReadableStream({
+      stderr: new ReadableStream({
         start(controller) {
           controller.enqueue(new TextEncoder().encode(sampleOutput))
           controller.close()
@@ -87,7 +87,7 @@ gitlab.example.com
 
   it('returns glabAvailable=false when glab has no output', async () => {
     ;(Bun as any).spawn = () => ({
-      stdout: new ReadableStream({
+      stderr: new ReadableStream({
         start(controller) {
           controller.close()
         },

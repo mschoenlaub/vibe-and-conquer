@@ -29,27 +29,6 @@ function glResource(type: string): 'merge_requests' | 'issues' {
   return type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
 }
 
-interface GLResult {
-  data: any
-  error: string | null
-}
-
-async function glab(args: string[]): Promise<GLResult> {
-  const proc = Bun.spawn(['glab', ...args], { env: { ...process.env } })
-  const stdout = await new Response(proc.stdout).text()
-  const exitCode = await proc.exited
-  if (exitCode !== 0) {
-    const stderr = await new Response(proc.stderr).text()
-    return { data: null, error: stderr }
-  }
-  if (stdout.trim() === '') return { data: null, error: null }
-  try {
-    return { data: JSON.parse(stdout), error: null }
-  } catch {
-    return { data: null, error: 'Failed to parse glab output' }
-  }
-}
-
 /** Resolve project path, instanceUrl, and gitlabToken from request params + DB. */
 async function resolveProject(
   c: Parameters<Parameters<typeof app.get>[1]>[0]
@@ -800,6 +779,77 @@ app.get('/feed', async (c) => {
 // Setup validation — validate that a GitLab repo path is accessible
 // Used by the repos route when adding a GitLab repo
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Instances — list authenticated GitLab instances via glab auth status --all
+// ---------------------------------------------------------------------------
+
+app.get('/instances', async (c) => {
+  try {
+    const proc = Bun.spawn(['glab', 'auth', 'status', '--all'], { env: { ...process.env }, stderr: 'pipe' })
+    const stderr = await new Response(proc.stderr).text()
+    await proc.exited
+
+    if (!stderr.trim()) {
+      return c.json({ instances: [], glabAvailable: false })
+    }
+
+    const instances: { host: string; label: string }[] = []
+    for (const line of stderr.split('\n')) {
+      const trimmed = line.trim()
+      if (trimmed && !trimmed.startsWith('✓') && !trimmed.startsWith('✗') && !trimmed.startsWith('•') && !trimmed.includes(' ')) {
+        instances.push({ host: trimmed, label: `GitLab (${trimmed})` })
+      }
+    }
+
+    return c.json({ instances, glabAvailable: true })
+  } catch {
+    return c.json({ instances: [], glabAvailable: false })
+  }
+})
+
+// ---------------------------------------------------------------------------
+// User repos — list repos for authenticated user via glab
+// ---------------------------------------------------------------------------
+
+app.get('/user-repos', async (c) => {
+  const instance = c.req.query('instance') ?? 'gitlab.com'
+  const page = parseInt(c.req.query('page') ?? '1', 10)
+  const perPage = parseInt(c.req.query('per_page') ?? '30', 10)
+  const search = c.req.query('search') ?? ''
+
+  try {
+    const args = ['api', `/projects?membership=true&order_by=last_activity_at&per_page=${perPage}&page=${page}`]
+    if (search) args[1] += `&search=${encodeURIComponent(search)}`
+
+    const proc = Bun.spawn(['glab', ...args, '--hostname', instance], { env: { ...process.env } })
+    const stdout = await new Response(proc.stdout).text()
+    const exitCode = await proc.exited
+
+    if (exitCode !== 0 || !stdout.trim()) {
+      return c.json({ repos: [], glabAvailable: false, page, perPage, total: null, truncated: false })
+    }
+
+    let projects: any[]
+    try {
+      projects = JSON.parse(stdout)
+    } catch {
+      return c.json({ repos: [], glabAvailable: false, page, perPage, total: null, truncated: false })
+    }
+
+    const repos = projects.map((p: any) => ({
+      name: p.name,
+      fullName: p.path_with_namespace,
+      description: p.description ?? null,
+      url: p.web_url,
+      isPrivate: p.visibility === 'private',
+    }))
+
+    return c.json({ repos, glabAvailable: true, page, perPage, total: null, truncated: false })
+  } catch {
+    return c.json({ repos: [], glabAvailable: false, page, perPage, total: null, truncated: false })
+  }
+})
 
 // GET /api/gitlab/validate?path=namespace/project — validate a GitLab project exists
 app.get('/validate', async (c) => {
