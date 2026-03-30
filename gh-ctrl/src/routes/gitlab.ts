@@ -20,7 +20,7 @@ import {
   fetchGitLabRepoData,
   fetchGitLabRepoMeta,
   normalizeMR,
-  normalizeIssue,
+  normalizeIssue, glab, glabAuthToken,
 } from '../providers/gitlab'
 
 const app = new Hono()
@@ -574,7 +574,7 @@ app.post('/create-issue', async (c) => {
 
   const row = await db.select().from(repos).where(eq(repos.fullName, fullName)).get()
   const instanceUrl = bodyInstanceUrl ?? row?.instanceUrl ?? process.env.GITLAB_INSTANCE_URL ?? null
-  const token = row?.gitlabToken ?? null
+  const token = await glabAuthToken(instanceUrl);
 
   const encoded = encodeProjectPath(fullName)
   const result = await glabApi(`/projects/${encoded}/issues`, {
