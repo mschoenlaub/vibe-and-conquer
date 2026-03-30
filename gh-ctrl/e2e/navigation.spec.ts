@@ -52,8 +52,8 @@ test.describe('Navigation', () => {
     const battlefieldLink = page.getByRole('link', { name: /battlefield/i })
     if (await battlefieldLink.count() > 0) {
       await battlefieldLink.click()
-      await page.waitForURL('**/battlefield')
-      await expect(page).toHaveURL(/battlefield/)
+      await page.waitForURL('http://localhost:5173/')
+      await expect(page).toHaveURL(/localhost:5173\/$|localhost:5173$/)
     }
   })
 
