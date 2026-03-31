@@ -378,3 +378,37 @@ export interface BattlefieldUser {
   avatarUrl: string
   lastRepoId?: number
 }
+
+export interface RemoteShellConfig {
+  configured: boolean
+  defaultConnectionId?: number
+  fontFamily?: string
+  fontSize?: number
+  theme?: 'dark' | 'dracula' | 'solarized'
+}
+
+export interface SshConnection {
+  id: number
+  buildingId: number
+  label: string
+  host: string
+  port: number | null
+  username: string
+  authType: string | null
+  hasCredentials: boolean
+  tmuxSession: string | null
+  createdAt: string | number | null
+  updatedAt: string | number | null
+}
+
+export interface SshSessionLog {
+  id: number
+  buildingId: number
+  connectionId: number | null
+  connectionLabel: string | null
+  connectedAt: string | number | null
+  disconnectedAt: string | number | null
+  durationMs: number | null
+}
+
+export type ShellStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error'
