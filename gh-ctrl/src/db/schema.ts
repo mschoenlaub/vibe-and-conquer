@@ -128,3 +128,29 @@ export const mailFolders = sqliteTable('mail_folders', {
   delimiter:   text('delimiter').notNull().default('/'),
   syncedAt:    integer('synced_at'),
 })
+
+// SSH connection profiles for RemotePost buildings
+export const sshConnections = sqliteTable('ssh_connections', {
+  id:             integer('id').primaryKey({ autoIncrement: true }),
+  buildingId:     integer('building_id').notNull().references(() => buildings.id, { onDelete: 'cascade' }),
+  label:          text('label').notNull(),
+  host:           text('host').notNull(),
+  port:           integer('port').default(22),
+  username:       text('username').notNull(),
+  authType:       text('auth_type').default('password'), // 'password' | 'key'
+  encryptedCreds: text('encrypted_creds'),               // AES-256-GCM encrypted JSON
+  tmuxSession:    text('tmux_session'),                  // null = no tmux, string = session name
+  createdAt:      integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt:      integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+})
+
+// Audit log for SSH connects / disconnects
+export const sshSessionLog = sqliteTable('ssh_session_log', {
+  id:              integer('id').primaryKey({ autoIncrement: true }),
+  buildingId:      integer('building_id').notNull().references(() => buildings.id, { onDelete: 'cascade' }),
+  connectionId:    integer('connection_id'),              // FK to sshConnections (nullable if deleted)
+  connectionLabel: text('connection_label'),              // snapshot of label at connect time
+  connectedAt:     integer('connected_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  disconnectedAt:  integer('disconnected_at', { mode: 'timestamp' }),
+  durationMs:      integer('duration_ms'),
+})

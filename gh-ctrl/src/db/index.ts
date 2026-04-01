@@ -176,4 +176,32 @@ sqlite.exec(`
   )
 `)
 
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS ssh_connections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    building_id INTEGER NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,
+    label TEXT NOT NULL,
+    host TEXT NOT NULL,
+    port INTEGER DEFAULT 22,
+    username TEXT NOT NULL,
+    auth_type TEXT DEFAULT 'password',
+    encrypted_creds TEXT,
+    tmux_session TEXT,
+    created_at INTEGER DEFAULT (unixepoch()),
+    updated_at INTEGER DEFAULT (unixepoch())
+  )
+`)
+
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS ssh_session_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    building_id INTEGER NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,
+    connection_id INTEGER,
+    connection_label TEXT,
+    connected_at INTEGER DEFAULT (unixepoch()),
+    disconnected_at INTEGER,
+    duration_ms INTEGER
+  )
+`)
+
 export const db = drizzle(sqlite, { schema })

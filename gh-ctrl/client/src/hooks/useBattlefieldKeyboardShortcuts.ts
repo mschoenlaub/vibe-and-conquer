@@ -37,6 +37,7 @@ interface UseBattlefieldKeyboardShortcutsOptions {
   onToggleTimers: () => void
   onPan: (dx: number, dy: number) => void
   onToggleShortcutsOverlay: () => void
+  onToggleCommandPalette?: () => void
   enabled: boolean
 }
 
@@ -53,6 +54,7 @@ export function useBattlefieldKeyboardShortcuts({
   onToggleTimers,
   onPan,
   onToggleShortcutsOverlay,
+  onToggleCommandPalette,
   onZoomToBase,
   enabled,
 }: UseBattlefieldKeyboardShortcutsOptions) {
@@ -120,10 +122,10 @@ export function useBattlefieldKeyboardShortcuts({
 
     const onKeyDown = (e: KeyboardEvent) => {
       // Don't fire if typing in an input/textarea
-      const tag = (e.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable || target.getAttribute?.('contenteditable') === 'true') return
       // Don't fire if a modal/dialog is open
-      if ((e.target as HTMLElement).closest('.modal-overlay, .map-dialog-overlay, [class*="dialog"], [class*="overlay"]')) return
+      if (target.closest?.('.modal-overlay, .map-dialog-overlay, [class*="dialog"], [class*="overlay"]')) return
 
       // Handle assignment mode
       if (assigningFor) {
@@ -137,6 +139,13 @@ export function useBattlefieldKeyboardShortcuts({
         e.preventDefault()
         const key = e.key.toLowerCase()
         assignShortcut(assigningFor.type, assigningFor.id, key)
+        return
+      }
+
+      // Ctrl+K / Cmd+K — Command Palette
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        onToggleCommandPalette?.()
         return
       }
 
@@ -232,7 +241,7 @@ export function useBattlefieldKeyboardShortcuts({
   }, [
     enabled, assigningFor, shortcuts, entries, buildings, positions, buildingPositions,
     onZoomIn, onZoomOut, onZoomReset, onZoomToBase, onScan, onToggleFeed, onToggleTimers,
-    onPan, onToggleShortcutsOverlay, assignShortcut,
+    onPan, onToggleShortcutsOverlay, onToggleCommandPalette, assignShortcut,
   ])
 
   return { shortcuts, assigningFor, startAssigning, cancelAssigning, clearShortcut, assignShortcut }
