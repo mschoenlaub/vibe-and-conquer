@@ -373,6 +373,20 @@ export interface MailMessage {
   fetchedAt: string | number | null
 }
 
+export interface ResearchCenterConfig {
+  repo: string
+  configured: boolean
+}
+
+export interface ResearchJob {
+  number: number
+  title: string
+  state: string
+  labels: { name: string; color: string }[]
+  url: string
+  createdAt: string
+}
+
 export interface BattlefieldUser {
   login: string
   avatarUrl: string

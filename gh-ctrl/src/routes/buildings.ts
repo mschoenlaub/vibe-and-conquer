@@ -437,4 +437,138 @@ app.post('/:id/mail/sync', async (c) => {
 })
 
 
+// ── Research Center routes ────────────────────────────────────────────────────
+
+async function ghSpawn(args: string[]): Promise<{ data: any; error: string | null }> {
+  const proc = Bun.spawn(['gh', ...args], { env: { ...process.env } })
+  const stdout = await new Response(proc.stdout).text()
+  const exitCode = await proc.exited
+  if (exitCode !== 0) {
+    const stderr = await new Response(proc.stderr).text()
+    return { data: null, error: stderr }
+  }
+  if (stdout.trim() === '') return { data: null, error: null }
+  try {
+    return { data: JSON.parse(stdout), error: null }
+  } catch {
+    return { data: null, error: 'Failed to parse gh output' }
+  }
+}
+
+async function ensureLabel(repo: string, name: string, color: string) {
+  Bun.spawnSync(['gh', 'label', 'create', name, '--repo', repo, '--color', color, '--force'], {
+    env: { ...process.env },
+  })
+}
+
+// GET /:id/research — list research jobs (issues with Research / Research complete label)
+app.get('/:id/research', async (c) => {
+  const id = Number(c.req.param('id'))
+  const buildingResult = await db.select().from(buildings).where(eq(buildings.id, id))
+  if (buildingResult.length === 0) return c.json({ error: 'Building not found' }, 404)
+  if (buildingResult[0].type !== 'research') return c.json({ error: 'Not a research building' }, 400)
+
+  let config: any = {}
+  try { config = JSON.parse(buildingResult[0].config ?? '{}') } catch { /* empty */ }
+  if (!config.repo) return c.json([])
+
+  const [activeResult, doneResult] = await Promise.all([
+    ghSpawn([
+      'issue', 'list', '--repo', config.repo,
+      '--label', 'Research',
+      '--state', 'all',
+      '--json', 'number,title,state,labels,url,createdAt',
+      '--limit', '50',
+    ]),
+    ghSpawn([
+      'issue', 'list', '--repo', config.repo,
+      '--label', 'Research complete',
+      '--state', 'all',
+      '--json', 'number,title,state,labels,url,createdAt',
+      '--limit', '50',
+    ]),
+  ])
+
+  const activeIssues: any[] = activeResult.data ?? []
+  const doneIssues: any[] = doneResult.data ?? []
+
+  // Merge and deduplicate by number (prefer the one from doneIssues if present in both)
+  const byNumber = new Map<number, any>()
+  for (const issue of activeIssues) byNumber.set(issue.number, issue)
+  for (const issue of doneIssues) byNumber.set(issue.number, issue)
+
+  const all = Array.from(byNumber.values()).sort((a, b) => b.number - a.number)
+  return c.json(all)
+})
+
+// POST /:id/research — create a new research job (GitHub issue)
+app.post('/:id/research', async (c) => {
+  const id = Number(c.req.param('id'))
+  const buildingResult = await db.select().from(buildings).where(eq(buildings.id, id))
+  if (buildingResult.length === 0) return c.json({ error: 'Building not found' }, 404)
+  if (buildingResult[0].type !== 'research') return c.json({ error: 'Not a research building' }, 400)
+
+  let config: any = {}
+  try { config = JSON.parse(buildingResult[0].config ?? '{}') } catch { /* empty */ }
+
+  const body = await c.req.json()
+  const { title, description } = body
+  const repo = body.repo ?? config.repo
+
+  if (!repo) return c.json({ error: 'No repository configured' }, 400)
+  if (!title?.trim()) return c.json({ error: 'Title is required' }, 400)
+
+  await ensureLabel(repo, 'Research', 'e11d48')
+
+  const issueBody = [
+    description?.trim() ? description.trim() : '',
+    '',
+    '@claude Please research this topic and provide a detailed report.',
+  ].join('\n').trim()
+
+  const proc = Bun.spawnSync([
+    'gh', 'issue', 'create',
+    '--repo', repo,
+    '--title', title.trim(),
+    '--body', issueBody,
+    '--label', 'Research',
+  ], { env: { ...process.env } })
+
+  if (proc.exitCode !== 0) {
+    return c.json({ error: proc.stderr.toString() }, 500)
+  }
+
+  const url = proc.stdout.toString().trim()
+  const numberMatch = url.match(/\/(\d+)$/)
+  return c.json({ ok: true, url, number: numberMatch ? Number(numberMatch[1]) : null })
+})
+
+// PATCH /:id/research/:issueNumber/complete — swap Research → Research complete
+app.patch('/:id/research/:issueNumber/complete', async (c) => {
+  const id = Number(c.req.param('id'))
+  const issueNumber = c.req.param('issueNumber')
+  const buildingResult = await db.select().from(buildings).where(eq(buildings.id, id))
+  if (buildingResult.length === 0) return c.json({ error: 'Building not found' }, 404)
+  if (buildingResult[0].type !== 'research') return c.json({ error: 'Not a research building' }, 400)
+
+  let config: any = {}
+  try { config = JSON.parse(buildingResult[0].config ?? '{}') } catch { /* empty */ }
+  if (!config.repo) return c.json({ error: 'No repository configured' }, 400)
+
+  await ensureLabel(config.repo, 'Research complete', '0e9a6e')
+
+  const proc = Bun.spawnSync([
+    'gh', 'issue', 'edit', issueNumber,
+    '--repo', config.repo,
+    '--remove-label', 'Research',
+    '--add-label', 'Research complete',
+  ], { env: { ...process.env } })
+
+  if (proc.exitCode !== 0) {
+    return c.json({ error: proc.stderr.toString() }, 500)
+  }
+
+  return c.json({ ok: true })
+})
+
 export default app
