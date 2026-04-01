@@ -1,4 +1,4 @@
-import type { Repo, DashboardEntry, RepoData, GHLabel, BranchesData, IssueDetail, PRDetail, GameMap, RepoMeta, FeedData, SetupStatus, Building, ClawComMessage, Badge, PlacedBadge, HealthcheckResult, DeadlineTimer, ChannelEvent, MailMessage, Contact, SshConnection, SshSessionLog } from './types'
+import type { Repo, DashboardEntry, RepoData, GHLabel, BranchesData, IssueDetail, PRDetail, GameMap, RepoMeta, FeedData, SetupStatus, Building, ClawComMessage, Badge, PlacedBadge, HealthcheckResult, DeadlineTimer, ChannelEvent, MailMessage, ResearchJob, Contact, SshConnection, SshSessionLog } from './types'
 
 export function getServerUrl(): string {
   return localStorage.getItem('serverUrl')?.replace(/\/$/, '') ?? ''
@@ -565,6 +565,22 @@ export const api = {
 
   validateGitLabProject: (ns: string, project: string) =>
     request<{ ok: boolean; projectId: number; name: string }>(`/gitlab/validate/${ns}/${project}`),
+
+  // ── Research Center ──────────────────────────────────────────────────────────
+
+  getResearchJobs: (buildingId: number) =>
+    request<ResearchJob[]>(`/buildings/${buildingId}/research`),
+
+  createResearchJob: (buildingId: number, params: { title: string; description?: string; repo?: string }) =>
+    request<{ ok: boolean; url: string; number: number | null }>(`/buildings/${buildingId}/research`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+
+  completeResearchJob: (buildingId: number, issueNumber: number) =>
+    request<{ ok: boolean }>(`/buildings/${buildingId}/research/${issueNumber}/complete`, {
+      method: 'PATCH',
+    }),
 
   // ── Contacts API ─────────────────────────────────────────────────────────────
 

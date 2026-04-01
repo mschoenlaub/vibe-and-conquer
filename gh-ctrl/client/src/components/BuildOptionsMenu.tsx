@@ -36,6 +36,14 @@ const AVAILABLE_BUILDINGS: BuildingDef[] = [
     defaultColor: '#4488ff',
   },
   {
+    type: 'research',
+    name: 'Research Center',
+    description:
+      'Deploy remote research agents via GitHub Issues. Create research missions that trigger @claude to investigate topics and produce reports. Track active missions and mark them complete — labels update automatically on GitHub.',
+    buildImage: '/buildings/healthcheck.png',
+    defaultColor: '#aa44ff',
+  },
+  {
     type: 'remoteShell',
     name: 'RemotePost',
     description:
