@@ -1,4 +1,4 @@
-import type { Repo, DashboardEntry, RepoData, GHLabel, BranchesData, IssueDetail, PRDetail, GameMap, RepoMeta, FeedData, SetupStatus, Building, ClawComMessage, Badge, PlacedBadge, HealthcheckResult, DeadlineTimer, ChannelEvent, MailMessage, ResearchJob } from './types'
+import type { Repo, DashboardEntry, RepoData, GHLabel, BranchesData, IssueDetail, PRDetail, GameMap, RepoMeta, FeedData, SetupStatus, Building, ClawComMessage, Badge, PlacedBadge, HealthcheckResult, DeadlineTimer, ChannelEvent, MailMessage, ResearchJob, SshConnection, SshSessionLog } from './types'
 
 export function getServerUrl(): string {
   return localStorage.getItem('serverUrl')?.replace(/\/$/, '') ?? ''
@@ -37,6 +37,20 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(err.error || res.statusText)
   }
   return res.json()
+}
+
+export function getShellWsUrl(buildingId: number, connectionId: number): string {
+  const serverUrl = getServerUrl()
+  const token = _getToken?.()
+  const qs = token
+    ? `?connectionId=${connectionId}&token=${encodeURIComponent(token)}`
+    : `?connectionId=${connectionId}`
+  if (serverUrl) {
+    const wsBase = serverUrl.replace(/^http/, 'ws')
+    return `${wsBase}/api/buildings/${buildingId}/shell/ws${qs}`
+  }
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.host}/api/buildings/${buildingId}/shell/ws${qs}`
 }
 
 export const api = {
@@ -233,6 +247,20 @@ export const api = {
   },
 
   getVersion: () => request<{ version: string }>('/version'),
+
+  getAllSettings: () => request<Record<string, string>>('/settings'),
+
+  getSetting: (key: string) =>
+    request<{ key: string; value: string | null }>(`/settings/${encodeURIComponent(key)}`),
+
+  putSetting: (key: string, value: string) =>
+    request<{ key: string; value: string }>(`/settings/${encodeURIComponent(key)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value }),
+    }),
+
+  deleteSetting: (key: string) =>
+    request<{ ok: boolean }>(`/settings/${encodeURIComponent(key)}`, { method: 'DELETE' }),
 
   listMaps: () => request<GameMap[]>('/maps'),
 
@@ -553,4 +581,65 @@ export const api = {
     request<{ ok: boolean }>(`/buildings/${buildingId}/research/${issueNumber}/complete`, {
       method: 'PATCH',
     }),
+
+  // ── RemotePost / SSH shell API ──────────────────────────────────────────────
+
+  listShellConnections: (buildingId: number) =>
+    request<SshConnection[]>(`/buildings/${buildingId}/shell/connections`),
+
+  createShellConnection: (buildingId: number, params: {
+    label: string
+    host: string
+    port?: number
+    username: string
+    authType?: 'password' | 'key'
+    password?: string
+    privateKey?: string
+    tmuxSession?: string
+  }) =>
+    request<SshConnection>(`/buildings/${buildingId}/shell/connections`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+
+  updateShellConnection: (buildingId: number, connectionId: number, params: Partial<{
+    label: string
+    host: string
+    port: number
+    username: string
+    authType: 'password' | 'key'
+    password: string
+    privateKey: string
+    tmuxSession: string
+  }>) =>
+    request<SshConnection>(`/buildings/${buildingId}/shell/connections/${connectionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(params),
+    }),
+
+  deleteShellConnection: (buildingId: number, connectionId: number) =>
+    request<{ ok: boolean }>(`/buildings/${buildingId}/shell/connections/${connectionId}`, {
+      method: 'DELETE',
+    }),
+
+  testShellConnection: (buildingId: number, params: {
+    host: string
+    port?: number
+    username: string
+    authType?: 'password' | 'key'
+    password?: string
+    privateKey?: string
+  }) =>
+    request<{ ok: boolean; error?: string }>(`/buildings/${buildingId}/shell/connections/test`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+
+  getShellHistory: (buildingId: number) =>
+    request<SshSessionLog[]>(`/buildings/${buildingId}/shell/history`),
+
+  getShellTmuxSessions: (buildingId: number, connectionId: number) =>
+    request<{ ok: boolean; sessions: string[]; error?: string }>(
+      `/buildings/${buildingId}/shell/connections/${connectionId}/tmux-sessions`
+    ),
 }

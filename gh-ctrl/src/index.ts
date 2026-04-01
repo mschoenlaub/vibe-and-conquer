@@ -10,6 +10,8 @@ import setupRouter from './routes/setup'
 import buildingsRouter from './routes/buildings'
 import badgesRouter from './routes/badges'
 import timersRouter from './routes/timers'
+import settingsRouter from './routes/settings'
+import shellRouter, { shellWebsocket } from './routes/shell'
 import pkg from '../package.json'
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -56,6 +58,8 @@ app.route('/api/setup', setupRouter)
 app.route('/api/buildings', buildingsRouter)
 app.route('/api/badges', badgesRouter)
 app.route('/api/timers', timersRouter)
+app.route('/api/settings', settingsRouter)
+app.route('/api/shell', shellRouter)
 
 app.get('/api/health', (c) => c.json({ ok: true }))
 app.get('/api/version', (c) => c.json({ version: pkg.version }))
@@ -72,4 +76,4 @@ seedDefaultMaps().catch((err) => console.error('[seed] error:', err))
 initHealthcheckService().catch((err) => console.error('[healthcheck-service] init error:', err))
 initMailboxService().catch((err) => console.error('[mailbox-service] init error:', err))
 
-export default { port: 3001, hostname: '0.0.0.0', fetch: app.fetch }
+export default { port: 3001, hostname: '0.0.0.0', fetch: app.fetch, websocket: shellWebsocket }
