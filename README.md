@@ -3,6 +3,7 @@
 <a href="https://github.com/svengraziani/vibe-and-conquer/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/svengraziani/vibe-and-conquer/ci.yml?branch=main&label=Build&logo=github&style=for-the-badge" alt="Build"></a>
 <a href="https://github.com/svengraziani/vibe-and-conquer/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/svengraziani/vibe-and-conquer/test.yml?branch=main&label=Tests&logo=github&style=for-the-badge" alt="Tests"></a>
 <a href="https://discord.gg/qjxF5ZDS"><img src="https://img.shields.io/discord/1456350064065904867?label=Discord&logo=discord&logoColor=white&color=5865F2&style=for-the-badge"></a>
+<a href="https://coderabbit.ai"><img src="https://img.shields.io/coderabbit/prs/github/svengraziani/vibe-and-conquer?utm_source=oss&utm_medium=github&utm_campaign=svengraziani%2Fvibe-and-conquer&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews" alt="CodeRabbit Reviews"></a>
 
 # Vibe and Conquer
 
