@@ -10,6 +10,7 @@ import setupRouter from './routes/setup'
 import buildingsRouter from './routes/buildings'
 import badgesRouter from './routes/badges'
 import timersRouter from './routes/timers'
+import contactsRouter from './routes/contacts'
 import settingsRouter from './routes/settings'
 import shellRouter, { shellWebsocket } from './routes/shell'
 import pkg from '../package.json'
@@ -58,6 +59,7 @@ app.route('/api/setup', setupRouter)
 app.route('/api/buildings', buildingsRouter)
 app.route('/api/badges', badgesRouter)
 app.route('/api/timers', timersRouter)
+app.route('/api/contacts', contactsRouter)
 app.route('/api/settings', settingsRouter)
 app.route('/api/shell', shellRouter)
 

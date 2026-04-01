@@ -1,4 +1,4 @@
-import type { Repo, DashboardEntry, RepoData, GHLabel, BranchesData, IssueDetail, PRDetail, GameMap, RepoMeta, FeedData, SetupStatus, Building, ClawComMessage, Badge, PlacedBadge, HealthcheckResult, DeadlineTimer, ChannelEvent, MailMessage, ResearchJob, SshConnection, SshSessionLog } from './types'
+import type { Repo, DashboardEntry, RepoData, GHLabel, BranchesData, IssueDetail, PRDetail, GameMap, RepoMeta, FeedData, SetupStatus, Building, ClawComMessage, Badge, PlacedBadge, HealthcheckResult, DeadlineTimer, ChannelEvent, MailMessage, ResearchJob, Contact, SshConnection, SshSessionLog } from './types'
 
 export function getServerUrl(): string {
   return localStorage.getItem('serverUrl')?.replace(/\/$/, '') ?? ''
@@ -581,6 +581,28 @@ export const api = {
     request<{ ok: boolean }>(`/buildings/${buildingId}/research/${issueNumber}/complete`, {
       method: 'PATCH',
     }),
+
+  // ── Contacts API ─────────────────────────────────────────────────────────────
+
+  listContacts: () => request<Contact[]>('/contacts'),
+
+  lookupContact: (username: string) =>
+    request<Contact>(`/contacts/lookup/${encodeURIComponent(username)}`),
+
+  createContact: (params: { username: string; email: string; displayName?: string; notes?: string }) =>
+    request<Contact>('/contacts', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+
+  updateContact: (id: number, updates: { username?: string; email?: string; displayName?: string; notes?: string }) =>
+    request<Contact>(`/contacts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    }),
+
+  deleteContact: (id: number) =>
+    request<{ ok: boolean }>(`/contacts/${id}`, { method: 'DELETE' }),
 
   // ── RemotePost / SSH shell API ──────────────────────────────────────────────
 
