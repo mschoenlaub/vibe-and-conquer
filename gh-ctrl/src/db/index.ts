@@ -177,6 +177,18 @@ sqlite.exec(`
 `)
 
 sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS contacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL,
+    display_name TEXT,
+    notes TEXT DEFAULT '',
+    created_at INTEGER DEFAULT (unixepoch()),
+    updated_at INTEGER DEFAULT (unixepoch())
+  )
+`)
+
+sqlite.exec(`
   CREATE TABLE IF NOT EXISTS ssh_connections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     building_id INTEGER NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,

@@ -129,6 +129,16 @@ export const mailFolders = sqliteTable('mail_folders', {
   syncedAt:    integer('synced_at'),
 })
 
+export const contacts = sqliteTable('contacts', {
+  id:          integer('id').primaryKey({ autoIncrement: true }),
+  username:    text('username').notNull().unique(),
+  email:       text('email').notNull(),
+  displayName: text('display_name'),
+  notes:       text('notes').default(''),
+  createdAt:   integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt:   integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+})
+
 // SSH connection profiles for RemotePost buildings
 export const sshConnections = sqliteTable('ssh_connections', {
   id:             integer('id').primaryKey({ autoIncrement: true }),
