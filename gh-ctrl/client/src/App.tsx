@@ -20,6 +20,7 @@ export default function App() {
   const toasts = useAppStore((s) => s.toasts)
   const loadRepos = useAppStore((s) => s.loadRepos)
   const loadDashboard = useAppStore((s) => s.loadDashboard)
+  const loadSettings = useAppStore((s) => s.loadSettings)
   const loadContacts = useAppStore((s) => s.loadContacts)
   const [appVersion, setAppVersion] = useState<string | null>(null)
   const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null)
@@ -64,11 +65,12 @@ export default function App() {
 
   useEffect(() => {
     if (!setupStatus?.ready) return
+    loadSettings()
     loadRepos()
     loadDashboard()
     loadContacts()
     api.getVersion().then((r) => setAppVersion(r.version)).catch(() => {})
-  }, [setupStatus?.ready, loadRepos, loadDashboard, loadContacts])
+  }, [setupStatus?.ready, loadSettings, loadRepos, loadDashboard, loadContacts])
 
   useEffect(() => {
     const interval = setInterval(() => {

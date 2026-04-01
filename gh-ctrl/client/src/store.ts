@@ -70,6 +70,7 @@ interface AppStore {
   removeToast: (id: number) => void
 
   // Async actions
+  loadSettings: () => Promise<void>
   loadRepos: () => Promise<void>
   loadDashboard: () => Promise<void>
   loadSingleRepo: (owner: string, name: string) => Promise<void>
@@ -175,8 +176,22 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
   },
 
+  loadSettings: async () => {
+    try {
+      const allSettings = await api.getAllSettings()
+      const intervalStr = allSettings['refreshInterval']
+      if (intervalStr) {
+        const ms = parseInt(intervalStr, 10)
+        if (!isNaN(ms)) set({ refreshInterval: ms })
+      }
+    } catch {
+      // silently fall back to localStorage value already in state
+    }
+  },
+
   handleRefreshIntervalChange: (ms: number) => {
     localStorage.setItem('refreshInterval', String(ms))
+    api.putSetting('refreshInterval', String(ms)).catch(() => {})
     set({ refreshInterval: ms })
   },
 

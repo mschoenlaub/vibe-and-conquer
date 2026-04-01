@@ -36,6 +36,14 @@ const AVAILABLE_BUILDINGS: BuildingDef[] = [
     defaultColor: '#4488ff',
   },
   {
+    type: 'remoteShell',
+    name: 'RemotePost',
+    description:
+      'Remote terminal outpost — SSH into your servers directly from the battlefield. Stores encrypted connection profiles, supports tmux session persistence, and opens a full-screen xterm.js terminal.',
+    buildImage: '/buildings/healthcheck.png',
+    defaultColor: '#00aaff',
+  },
+  {
     type: 'new-base',
     name: 'Repository',
     description:
