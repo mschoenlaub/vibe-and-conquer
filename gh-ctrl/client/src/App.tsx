@@ -23,6 +23,7 @@ export default function App() {
   const loadSettings = useAppStore((s) => s.loadSettings)
   const loadContacts = useAppStore((s) => s.loadContacts)
   const [appVersion, setAppVersion] = useState<string | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null)
   const [setupChecked, setSetupChecked] = useState(false)
   const [connectionChecked, setConnectionChecked] = useState(false)
@@ -120,7 +121,21 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      <aside className="sidebar">
+      {/* Mobile: hamburger button to open sidebar drawer */}
+      <button
+        className="sidebar-hamburger"
+        onClick={() => setSidebarOpen(v => !v)}
+        aria-label="Toggle navigation"
+      >
+        &#x2630;
+      </button>
+
+      {/* Mobile: backdrop to close sidebar drawer */}
+      {sidebarOpen && (
+        <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <aside className={`sidebar${sidebarOpen ? ' sidebar-open' : ''}`}>
         <div className="sidebar-logo">
           <img src="/logo-transparent.png" alt="V&C Command Center" className="sidebar-logo-img" />
         </div>
@@ -130,24 +145,28 @@ export default function App() {
             to="/"
             end
             className={({ isActive }) => `nav-btn${isActive ? ' active' : ''}`}
+            onClick={() => setSidebarOpen(false)}
           >
             <span className="nav-icon">&#x25a0;</span><span className="nav-label"> Battlefield</span>
           </NavLink>
           <NavLink
             to="/map-editor"
             className={({ isActive }) => `nav-btn${isActive ? ' active' : ''}`}
+            onClick={() => setSidebarOpen(false)}
           >
             <span className="nav-icon">&#x25a6;</span><span className="nav-label"> Map Editor</span>
           </NavLink>
           <NavLink
             to="/settings"
             className={({ isActive }) => `nav-btn${isActive ? ' active' : ''}`}
+            onClick={() => setSidebarOpen(false)}
           >
             <span className="nav-icon">&#x2699;</span><span className="nav-label"> Repositories</span>
           </NavLink>
           <NavLink
             to="/contacts"
             className={({ isActive }) => `nav-btn${isActive ? ' active' : ''}`}
+            onClick={() => setSidebarOpen(false)}
           >
             <span className="nav-icon">&#x2602;</span><span className="nav-label"> Contacts</span>
           </NavLink>
@@ -197,7 +216,7 @@ export default function App() {
         )}
       </aside>
 
-      <main className="main-content">
+      <main className="main-content" onClick={() => setSidebarOpen(false)}>
         <Routes>
           <Route path="/" element={<BattlefieldView />} />
           <Route path="/map-editor" element={<MapEditor />} />

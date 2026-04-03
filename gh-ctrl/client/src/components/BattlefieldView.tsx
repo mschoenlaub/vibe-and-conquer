@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import type { DashboardEntry, GameMap, Badge } from '../types'
 import { BranchSiloPanel } from './BranchSiloPanel'
 import { SidePanel } from './SidePanel'
@@ -46,8 +46,14 @@ export function BattlefieldView() {
   const placedBadges = useAppStore((s) => s.placedBadges)
   const storePlaceBadge = useAppStore((s) => s.placeBadge)
   const updatePlacedBadgePosition = useAppStore((s) => s.updatePlacedBadgePosition)
-  // Camera: zoom, pan, wheel zoom
-  const camera = useBattlefieldCamera()
+  // Camera: zoom, pan, wheel zoom, touch
+  // onTap / onLongPress are set via refs inside the hook, so we pass stable callbacks
+  const tapCallbackRef = useRef<((x: number, y: number) => void) | undefined>(undefined)
+  const longPressCallbackRef = useRef<((x: number, y: number) => void) | undefined>(undefined)
+  const camera = useBattlefieldCamera({
+    onTap: useCallback((x, y) => tapCallbackRef.current?.(x, y), []),
+    onLongPress: useCallback((x, y) => longPressCallbackRef.current?.(x, y), []),
+  })
   const { offset, setOffset, zoom, isDraggingMap, setIsDraggingMap, dragStart, setDragStart, zoomRef, offsetRef, containerRef, handleZoomIn, handleZoomOut, handleZoomReset, handleZoomToBase } = camera
 
   // Base node positions
@@ -80,7 +86,22 @@ export function BattlefieldView() {
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
 
+  // Mobile: minimap hidden by default on small screens; landscape overlay
+  const isMobileScreen = useMemo(() => window.innerWidth <= 480, [])
+  const [showMinimap, setShowMinimap] = useState(!isMobileScreen)
+  const [isPortrait, setIsPortrait] = useState(() => window.innerWidth < window.innerHeight && window.innerWidth <= 768)
+
+  // Long-press context menu
+  type ContextMenu = { screenX: number; screenY: number } | null
+  const [contextMenu, setContextMenu] = useState<ContextMenu>(null)
+
   const autoScanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    const onResize = () => setIsPortrait(window.innerWidth < window.innerHeight && window.innerWidth <= 768)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   const { play } = useSound()
 
@@ -203,12 +224,11 @@ export function BattlefieldView() {
     setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y })
   }, [offset, isRelocateMode, placementMode, placingBadge, setIsDraggingMap, setDragStart])
 
-  const handleMapClick = useCallback(async (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.cnc-sidebar')) return
+  const handleClickAtPosition = useCallback(async (clientX: number, clientY: number) => {
     const rect = containerRef.current?.getBoundingClientRect()
     if (!rect) return
-    const mapX = (e.clientX - rect.left - offsetRef.current.x) / zoomRef.current
-    const mapY = (e.clientY - rect.top - offsetRef.current.y) / zoomRef.current
+    const mapX = (clientX - rect.left - offsetRef.current.x) / zoomRef.current
+    const mapY = (clientY - rect.top - offsetRef.current.y) / zoomRef.current
 
     if (placingBadge) {
       try {
@@ -268,6 +288,25 @@ export function BattlefieldView() {
     }
     setPlacementMode(null)
   }, [placementMode, placingBadge, loadBuildings, addToast, storePlaceBadge, loadRepos, onRefresh, activeMap, setPositions, containerRef, offsetRef, zoomRef])
+
+  const handleMapClick = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('.cnc-sidebar')) return
+    handleClickAtPosition(e.clientX, e.clientY)
+  }, [handleClickAtPosition])
+
+  const handleTap = useCallback((clientX: number, clientY: number) => {
+    setContextMenu(null)
+    handleClickAtPosition(clientX, clientY)
+  }, [handleClickAtPosition])
+
+  const handleLongPress = useCallback((clientX: number, clientY: number) => {
+    setContextMenu({ screenX: clientX, screenY: clientY })
+    play('peep')
+  }, [play])
+
+  // Keep tap/long-press refs in sync so the camera hook always calls the latest versions
+  tapCallbackRef.current = handleTap
+  longPressCallbackRef.current = handleLongPress
 
   const handleMapMouseMove = useCallback((e: React.MouseEvent) => {
     if (placementMode) {
@@ -338,8 +377,15 @@ export function BattlefieldView() {
   useEffect(() => {
     if (!placementMode) return
     const onMove = (e: MouseEvent) => setGhostScreenPos({ x: e.clientX, y: e.clientY })
+    const onTouch = (e: TouchEvent) => {
+      if (e.touches.length > 0) setGhostScreenPos({ x: e.touches[0].clientX, y: e.touches[0].clientY })
+    }
     window.addEventListener('mousemove', onMove)
-    return () => window.removeEventListener('mousemove', onMove)
+    window.addEventListener('touchmove', onTouch, { passive: true })
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('touchmove', onTouch)
+    }
   }, [placementMode])
 
   const visibleEntries = activeMapRepoIds === null
@@ -400,6 +446,8 @@ export function BattlefieldView() {
         onZoomReset={() => handleZoomReset(positions)}
         onToggleShortcuts={handleToggleShortcuts}
         showShortcuts={showShortcuts}
+        showMinimap={showMinimap}
+        onToggleMinimap={() => setShowMinimap(v => !v)}
       />
 
       <BattlefieldMapLayer
@@ -438,7 +486,7 @@ export function BattlefieldView() {
         onStartBadgeRelocate={handleStartBadgeRelocate}
       />
 
-      {(visibleEntries.length > 0 || pendingRepos.length > 0) && (
+      {showMinimap && (visibleEntries.length > 0 || pendingRepos.length > 0) && (
         <BattlefieldMinimap entries={visibleEntries} positions={positions} offset={offset} zoom={zoom} onJump={setOffset} />
       )}
 
@@ -622,6 +670,80 @@ export function BattlefieldView() {
             />
           </div>
         </SidePanel>
+      )}
+
+      {/* Long-press context menu */}
+      {contextMenu && (
+        <div
+          className="battlefield-context-menu"
+          style={{ left: contextMenu.screenX, top: contextMenu.screenY }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="bcm-header">&#x25CF; FIELD OPS</div>
+          {(placementMode || placingBadge) ? (
+            <button className="bcm-btn bcm-btn-primary" onClick={() => {
+              setContextMenu(null)
+              handleClickAtPosition(contextMenu.screenX, contextMenu.screenY)
+            }}>
+              &#x2295; PLACE HERE
+            </button>
+          ) : (
+            <>
+              <button className="bcm-btn" onClick={() => {
+                setContextMenu(null)
+                play('peep')
+                onRefresh()
+              }}>
+                &#x25CE; SCAN ALL
+              </button>
+              <button className="bcm-btn" onClick={() => {
+                setContextMenu(null)
+                play('hydraulic')
+                setShowBuildMenu(true)
+              }}>
+                &#x25A3; BUILD HERE
+              </button>
+              <button className="bcm-btn" onClick={() => {
+                setContextMenu(null)
+                play('hydraulic')
+                setIsRelocateMode(v => !v)
+                setRelocatingId(null)
+                setRelocatingStart(null)
+              }}>
+                {isRelocateMode ? <span>&#x2716; CANCEL RELOCATE</span> : <span>&#x2316; RELOCATE BASE</span>}
+              </button>
+            </>
+          )}
+          <button className="bcm-btn bcm-btn-cancel" onClick={() => setContextMenu(null)}>
+            &#x2715; CANCEL
+          </button>
+        </div>
+      )}
+      {contextMenu && (
+        <div className="battlefield-context-backdrop" onClick={() => setContextMenu(null)} />
+      )}
+
+      {/* Mobile: fancy placement mode overlay */}
+      {(placementMode || placingBadge) && (
+        <div className="mobile-placement-hint">
+          <div className="mph-crosshair" />
+          <div className="mph-label">
+            {placingBadge ? `TAP TO DROP: ${placingBadge.name}` : `TAP TO PLACE: ${placementMode!.name}`}
+          </div>
+          <button className="mph-cancel" onClick={() => { setPlacementMode(null); setPlacingBadge(null) }}>
+            &#x2715; CANCEL
+          </button>
+        </div>
+      )}
+
+      {/* Landscape orientation overlay */}
+      {isPortrait && (
+        <div className="battlefield-landscape-overlay">
+          <div className="blo-icon">&#x21BA;</div>
+          <div className="blo-title">ROTATE DEVICE</div>
+          <div className="blo-sub">Command Center requires landscape orientation</div>
+        </div>
       )}
     </div>
   )

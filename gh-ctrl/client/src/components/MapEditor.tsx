@@ -841,6 +841,20 @@ const ZOOM_MAX = 3
 const ZOOM_FACTOR = 1.15
 
 export function MapEditor() {
+  // Block on phones (≤480px); tablet (481–768px) is allowed
+  if (window.innerWidth <= 480) {
+    return (
+      <div className="map-editor-mobile-block">
+        <div className="meb-icon">&#x25A6;</div>
+        <div className="meb-title">TABLET REQUIRED</div>
+        <div className="meb-sub">Map Editor is not available on mobile devices.<br />Please use a tablet or desktop to access the Map Editor.</div>
+      </div>
+    )
+  }
+  return <MapEditorContent />
+}
+
+function MapEditorContent() {
   const onToast = useAppStore((s) => s.addToast)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
