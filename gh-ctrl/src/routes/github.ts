@@ -259,6 +259,8 @@ async function fetchRepoData(fullName: string) {
       branches: [],
       defaultBranch: 'main',
       hasClaudeYml: false,
+      hasPleaseRelease: false,
+      hasCodeRabbit: false,
       error: prResult.error || issueResult.error,
     }
   }
