@@ -218,6 +218,8 @@ export async function fetchGitLabRepoData(
     branches: [],
     defaultBranch: 'main',
     hasClaudeYml: false,
+    hasPleaseRelease: false,
+    hasCodeRabbit: false,
     error: null,
   }
 
@@ -287,6 +289,8 @@ export async function fetchGitLabRepoData(
     branches,
     defaultBranch,
     hasClaudeYml: false,
+    hasPleaseRelease: false,
+    hasCodeRabbit: false,
     error: null,
   }
 }

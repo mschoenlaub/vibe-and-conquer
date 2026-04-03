@@ -176,6 +176,22 @@ async function checkClaudeYml(fullName: string): Promise<boolean> {
   return result.error === null && result.data !== null
 }
 
+async function checkPleaseRelease(fullName: string): Promise<boolean> {
+  const [config, manifest] = await Promise.all([
+    gh(['api', `repos/${fullName}/contents/release-please-config.json`]),
+    gh(['api', `repos/${fullName}/contents/.release-please-manifest.json`]),
+  ])
+  return (config.error === null && config.data !== null) || (manifest.error === null && manifest.data !== null)
+}
+
+async function checkCodeRabbit(fullName: string): Promise<boolean> {
+  const [yml, yaml] = await Promise.all([
+    gh(['api', `repos/${fullName}/contents/.coderabbit.yaml`]),
+    gh(['api', `repos/${fullName}/contents/.coderabbit.yml`]),
+  ])
+  return (yml.error === null && yml.data !== null) || (yaml.error === null && yaml.data !== null)
+}
+
 async function fetchRepoBranches(fullName: string): Promise<{ branches: { name: string; committedDate: string }[]; defaultBranch: string }> {
   const [owner, name] = fullName.split('/')
   const graphqlQuery = `{
@@ -243,6 +259,8 @@ async function fetchRepoData(fullName: string) {
       branches: [],
       defaultBranch: 'main',
       hasClaudeYml: false,
+      hasPleaseRelease: false,
+      hasCodeRabbit: false,
       error: prResult.error || issueResult.error,
     }
   }
@@ -251,12 +269,14 @@ async function fetchRepoData(fullName: string) {
   const issues = issueResult.data || []
 
   // Netlify URLs depend on prs, but workflows and branches are independent
-  const [previewUrls, { activeClaudeIssues, runningWorkflows }, claudeIssueBranches, { branches, defaultBranch }, hasClaudeYml] = await Promise.all([
+  const [previewUrls, { activeClaudeIssues, runningWorkflows }, claudeIssueBranches, { branches, defaultBranch }, hasClaudeYml, hasPleaseRelease, hasCodeRabbit] = await Promise.all([
     fetchNetlifyUrls(fullName, prs),
     fetchRunningWorkflows(fullName),
     fetchClaudeIssueBranches(fullName),
     fetchRepoBranches(fullName),
     checkClaudeYml(fullName),
+    checkPleaseRelease(fullName),
+    checkCodeRabbit(fullName),
   ])
 
   const enrichedPrs = prs.map((pr: any) => ({
@@ -303,6 +323,8 @@ async function fetchRepoData(fullName: string) {
     branches,
     defaultBranch,
     hasClaudeYml,
+    hasPleaseRelease,
+    hasCodeRabbit,
     error: null,
   }
 }

@@ -86,7 +86,9 @@ export interface NormalizedRepoData {
   runningWorkflows: NormalizedPipeline[]
   branches: NormalizedBranch[]
   defaultBranch: string
-  hasClaudeYml: false
+  hasClaudeYml: boolean
+  hasPleaseRelease: boolean
+  hasCodeRabbit: boolean
   error: string | null
 }
 
