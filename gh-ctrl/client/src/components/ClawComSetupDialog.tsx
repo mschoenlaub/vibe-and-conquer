@@ -22,14 +22,22 @@ export function ClawComSetupDialog({ building, onClose, onConfigured, onError }:
   const [mcpWebhookUrl, setMcpWebhookUrl] = useState(existingConfig.mcpWebhookUrl ?? 'http://localhost:8788')
   const [channelSecret, setChannelSecret] = useState(existingConfig.channelSecret ?? '')
   const [enablePermissionRelay, setEnablePermissionRelay] = useState(existingConfig.enablePermissionRelay ?? false)
+  const [githubToken, setGithubToken] = useState(existingConfig.githubToken ?? '')
+  const [copilotModel, setCopilotModel] = useState(existingConfig.copilotModel ?? 'gpt-4o')
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<string | null>(null)
 
   const isChannel = clawType === 'claudechannel'
+  const isCopilot = clawType === 'copilot'
 
   async function handleSave() {
-    if (isChannel) {
+    if (isCopilot) {
+      if (!githubToken.trim()) {
+        onError('GitHub Token is required')
+        return
+      }
+    } else if (isChannel) {
       if (!mcpWebhookUrl.trim()) {
         onError('MCP Webhook URL is required')
         return
@@ -43,7 +51,15 @@ export function ClawComSetupDialog({ building, onClose, onConfigured, onError }:
 
     setSaving(true)
     try {
-      const config: ClawComConfig = isChannel
+      const config: ClawComConfig = isCopilot
+        ? {
+            clawType,
+            host: '',
+            configured: true,
+            githubToken: githubToken.trim(),
+            copilotModel: copilotModel || 'gpt-4o',
+          }
+        : isChannel
         ? {
             clawType,
             host: '',
@@ -85,6 +101,30 @@ export function ClawComSetupDialog({ building, onClose, onConfigured, onError }:
     }
   }
 
+  async function handleCopilotTest() {
+    if (!githubToken.trim()) return
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const res = await fetch('/api/buildings/copilot-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ githubToken: githubToken.trim() }),
+        signal: AbortSignal.timeout(10000),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setTestResult('✓ Token valid — Copilot API reachable!')
+      } else {
+        setTestResult(`✗ Error: ${data.error}`)
+      }
+    } catch (err: any) {
+      setTestResult(`✗ Unreachable: ${err.message}`)
+    } finally {
+      setTesting(false)
+    }
+  }
+
   return (
     <BaseDialog className="map-dialog" onClose={onClose}>
         <div className="map-dialog-title">&#x25a0; {building.name.toUpperCase()} — SETUP</div>
@@ -97,7 +137,9 @@ export function ClawComSetupDialog({ building, onClose, onConfigured, onError }:
           />
           <div className="clawcom-setup-form">
             <div className="clawcom-setup-desc">
-              {isChannel
+              {isCopilot
+                ? 'Connect ClawCom to GitHub Copilot. Requires a GitHub PAT (classic or fine-grained) with the copilot scope.'
+                : isChannel
                 ? 'Connect ClawCom to a running Claude Code session via the Claude Channels MCP protocol.'
                 : 'Configure the connection to an Openclaw or Nanoclaw. Once set up, you can send and receive commands via the integrated chat window.'}
             </div>
@@ -105,19 +147,65 @@ export function ClawComSetupDialog({ building, onClose, onConfigured, onError }:
             <div className="clawcom-setup-group">
               <label className="clawcom-setup-group-label">Claw Type</label>
               <div className="clawcom-setup-row">
-                {(['openclaw', 'nanoclaw', 'claudechannel'] as const).map((t) => (
+                {(['openclaw', 'nanoclaw', 'claudechannel', 'copilot'] as const).map((t) => (
                   <button
                     key={t}
                     className={`hud-btn${clawType === t ? ' active' : ''}`}
-                    onClick={() => setClawType(t)}
+                    onClick={() => { setClawType(t); setTestResult(null) }}
                   >
-                    {t === 'openclaw' ? '⚙ OPENCLAW' : t === 'nanoclaw' ? '⬡ NANOCLAW' : '✦ CLAUDE'}
+                    {t === 'openclaw' ? '⚙ OPENCLAW' : t === 'nanoclaw' ? '⬡ NANOCLAW' : t === 'claudechannel' ? '✦ CLAUDE' : '◎ COPILOT'}
                   </button>
                 ))}
               </div>
             </div>
 
-            {isChannel ? (
+            {isCopilot ? (
+              <>
+                <div className="clawcom-setup-group">
+                  <label className="clawcom-setup-group-label">GitHub Token <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>(copilot scope)</span></label>
+                  <div className="clawcom-setup-row">
+                    <input
+                      className="hud-input"
+                      type="password"
+                      value={githubToken}
+                      onChange={(e) => setGithubToken(e.target.value)}
+                      placeholder="ghp_..."
+                    />
+                    <button
+                      className="hud-btn"
+                      onClick={handleCopilotTest}
+                      disabled={testing || !githubToken.trim()}
+                      title="Test token"
+                    >
+                      {testing ? '◌' : 'TEST'}
+                    </button>
+                  </div>
+                  {testResult && (
+                    <div className={`clawcom-test-result ${testResult.startsWith('✓') ? 'clawcom-test-result--ok' : 'clawcom-test-result--err'}`}>
+                      {testResult}
+                    </div>
+                  )}
+                </div>
+
+                <div className="clawcom-setup-group">
+                  <label className="clawcom-setup-group-label">Model</label>
+                  <select
+                    className="hud-input"
+                    value={copilotModel}
+                    onChange={(e) => setCopilotModel(e.target.value)}
+                  >
+                    <option value="gpt-4o">gpt-4o</option>
+                    <option value="gpt-4o-mini">gpt-4o-mini</option>
+                    <option value="claude-3.5-sonnet">claude-3.5-sonnet</option>
+                    <option value="o1-mini">o1-mini</option>
+                  </select>
+                </div>
+
+                <div style={{ fontSize: 9, color: 'var(--text-dim)', marginTop: 4, lineHeight: 1.5 }}>
+                  Requires a GitHub Copilot Individual/Business/Enterprise subscription.
+                </div>
+              </>
+            ) : isChannel ? (
               <>
                 <div className="clawcom-setup-group">
                   <label className="clawcom-setup-group-label">MCP Webhook URL</label>

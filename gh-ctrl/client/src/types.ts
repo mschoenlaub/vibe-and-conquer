@@ -225,7 +225,7 @@ export interface MapTile {
 }
 
 export interface ClawComConfig {
-  clawType: 'openclaw' | 'nanoclaw' | 'claudechannel'
+  clawType: 'openclaw' | 'nanoclaw' | 'claudechannel' | 'copilot'
   host: string
   configured: boolean
   /** Claude Channel: URL of the MCP server webhook (default: http://localhost:8788) */
@@ -234,6 +234,10 @@ export interface ClawComConfig {
   channelSecret?: string
   /** Claude Channel: prompt the user before Claude runs destructive tools */
   enablePermissionRelay?: boolean
+  /** Copilot: GitHub PAT with copilot scope */
+  githubToken?: string
+  /** Copilot: model name (default: gpt-4o) */
+  copilotModel?: string
 }
 
 export type ChannelEventType =
