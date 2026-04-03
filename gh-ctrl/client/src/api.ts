@@ -238,7 +238,7 @@ export const api = {
       body: JSON.stringify(params),
     }),
 
-  getUserRepos: (params: { page?: number; per_page?: number; search?: string }) => {
+  getGithubUserRepos: (params: { page?: number; per_page?: number; search?: string }) => {
     const qs = new URLSearchParams()
     if (params.page) qs.set('page', String(params.page))
     if (params.per_page) qs.set('per_page', String(params.per_page))
@@ -565,6 +565,18 @@ export const api = {
 
   validateGitLabProject: (ns: string, project: string) =>
     request<{ ok: boolean; projectId: number; name: string }>(`/gitlab/validate/${ns}/${project}`),
+
+  getGitLabInstances: () =>
+    request<{ instances: { host: string; label: string }[]; glabAvailable: boolean }>('/gitlab/instances'),
+
+  getGitLabUserRepos: (params: { page?: number; per_page?: number; search?: string; instance?: string }) => {
+    const qs = new URLSearchParams()
+    if (params.page) qs.set('page', String(params.page))
+    if (params.per_page) qs.set('per_page', String(params.per_page))
+    if (params.search) qs.set('search', params.search)
+    if (params.instance) qs.set('instance', params.instance)
+    return request<{ repos: { name: string; fullName: string; description: string | null; url: string; isPrivate: boolean }[]; page: number; perPage: number; total: number | null; truncated: boolean; glabAvailable: boolean }>(`/gitlab/user-repos?${qs}`)
+  },
 
   // ── Research Center ──────────────────────────────────────────────────────────
 

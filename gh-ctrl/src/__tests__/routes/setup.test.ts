@@ -32,7 +32,7 @@ describe('GET /status', () => {
     expect(body.ready).toBe(false)
     expect(body.checks).toBeDefined()
 
-    const ghCheck = body.checks.find((c: any) => c.id === 'gh_installed')
+    const ghCheck = body.checks.find((c: any) => c.id === 'cli_installed')
     expect(ghCheck.ok).toBe(false)
 
     ;(Bun as any).spawnSync = original
@@ -72,8 +72,7 @@ describe('GET /status', () => {
     expect(Array.isArray(body.checks)).toBe(true)
 
     const ids = body.checks.map((c: any) => c.id)
-    expect(ids).toContain('gh_installed')
-    expect(ids).toContain('gh_auth')
+    expect(ids).toContain('cli_installed')
     expect(ids).toContain('db')
 
     ;(Bun as any).spawnSync = original

@@ -20,7 +20,7 @@ import {
   fetchGitLabRepoData,
   fetchGitLabRepoMeta,
   normalizeMR,
-  normalizeIssue,
+  normalizeIssue, glab, glabAuthToken,
 } from '../providers/gitlab'
 
 const app = new Hono()
@@ -46,7 +46,7 @@ async function resolveProject(
     .get()
 
   const instanceUrl = row?.instanceUrl ?? process.env.GITLAB_INSTANCE_URL ?? null
-  const gitlabToken = row?.gitlabToken ?? null
+  const gitlabToken = row?.gitlabToken ?? process.env.GITLAB_TOKEN ?? null
 
   return { projectPath, instanceUrl, gitlabToken }
 }
@@ -70,6 +70,54 @@ app.get('/repo/:namespace/:project', async (c) => {
 
   const data = await fetchGitLabRepoData(resolved.projectPath, resolved.instanceUrl, resolved.gitlabToken)
   return c.json(data)
+})
+
+app.post('/create-repo', async (c) => {
+  const body = await c.req.json()
+  const { name, description, visibility } = body
+
+  if (!name) {
+    return c.json({ error: 'Missing required field: name' }, 400)
+  }
+
+  if (visibility !== 'public' && visibility !== 'private') {
+    return c.json({ error: 'visibility must be "public" or "private"' }, 400)
+  }
+
+  // Get authenticated user to build fullName
+  const userResult = await glab(['api', 'user'])
+  if (userResult.error || !userResult.data?.username) {
+    return c.json({ error: 'Failed to get authenticated GitLab user' }, 500)
+  }
+  const owner = userResult.data.username
+  const fullName = `${owner}/${name}`
+
+  const args = ['repo', 'create', name, `--${visibility}`]
+  if (description) args.push('--description', description)
+
+  const proc = await glab(args)
+  if (proc.error) {
+    return c.json({ error: proc.error }, 500)
+  }
+
+  // Add the newly created repo to the tracked repos DB
+  try {
+    const result = await db.insert(repos).values({
+      owner,
+      name,
+      fullName,
+      description: description || null,
+      color: '#00ff88',
+      provider: 'gitlab',
+    }).returning()
+
+    return c.json({ ok: true, repo: result[0] }, 201)
+  } catch (err: any) {
+    if (err.message?.includes('UNIQUE')) {
+      return c.json({ error: 'Repository already tracked' }, 409)
+    }
+    return c.json({ error: 'Repository created but failed to track it' }, 500)
+  }
 })
 
 // ---------------------------------------------------------------------------
@@ -505,7 +553,7 @@ app.post('/create-issue', async (c) => {
 
   const row = await db.select().from(repos).where(eq(repos.fullName, fullName)).get()
   const instanceUrl = bodyInstanceUrl ?? row?.instanceUrl ?? process.env.GITLAB_INSTANCE_URL ?? null
-  const token = row?.gitlabToken ?? null
+  const token = await glabAuthToken(instanceUrl);
 
   const encoded = encodeProjectPath(fullName)
   const result = await glabApi(`/projects/${encoded}/issues`, {
@@ -588,7 +636,7 @@ app.post('/comment', async (c) => {
   const token = row?.gitlabToken ?? null
 
   const encoded = encodeProjectPath(fullName)
-  const resource = glResource(type)
+  const resource = type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
 
   const result = await glabApi(`/projects/${encoded}/${resource}/${number}/notes`, {
     instanceUrl,
@@ -614,18 +662,16 @@ app.post('/assignee', async (c) => {
   const token = row?.gitlabToken ?? null
 
   const encoded = encodeProjectPath(fullName)
-  const resource = glResource(type)
+  const resource = type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
 
-  const [currentResult, userResult] = await Promise.all([
-    glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token }),
-    glabApi(`/users?username=${encodeURIComponent(assignee)}`, { instanceUrl, token }),
-  ])
+  const currentResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token })
   if (currentResult.error) return c.json({ error: currentResult.error }, 500)
 
+  const currentIds: number[] = (currentResult.data?.assignees ?? []).map((u: any) => u.id)
+  const userResult = await glabApi(`/users?username=${encodeURIComponent(assignee)}`, { instanceUrl, token })
   const userId = userResult.data?.[0]?.id
   if (!userId) return c.json({ error: `User '${assignee}' not found` }, 404)
 
-  const currentIds: number[] = (currentResult.data?.assignees ?? []).map((u: any) => u.id)
   if (!currentIds.includes(userId)) currentIds.push(userId)
 
   const updateResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, {
@@ -652,15 +698,14 @@ app.delete('/assignee', async (c) => {
   const token = row?.gitlabToken ?? null
 
   const encoded = encodeProjectPath(fullName)
-  const resource = glResource(type)
+  const resource = type === 'mr' || type === 'pr' ? 'merge_requests' : 'issues'
 
-  const [currentResult, userResult] = await Promise.all([
-    glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token }),
-    glabApi(`/users?username=${encodeURIComponent(assignee)}`, { instanceUrl, token }),
-  ])
+  const currentResult = await glabApi(`/projects/${encoded}/${resource}/${number}`, { instanceUrl, token })
   if (currentResult.error) return c.json({ error: currentResult.error }, 500)
 
+  const userResult = await glabApi(`/users?username=${encodeURIComponent(assignee)}`, { instanceUrl, token })
   const userId = userResult.data?.[0]?.id
+
   const filteredIds = (currentResult.data?.assignees ?? [])
     .map((u: any) => u.id)
     .filter((id: number) => id !== userId)
@@ -734,6 +779,77 @@ app.get('/feed', async (c) => {
 // Setup validation — validate that a GitLab repo path is accessible
 // Used by the repos route when adding a GitLab repo
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Instances — list authenticated GitLab instances via glab auth status --all
+// ---------------------------------------------------------------------------
+
+app.get('/instances', async (c) => {
+  try {
+    const proc = Bun.spawn(['glab', 'auth', 'status', '--all'], { env: { ...process.env }, stderr: 'pipe' })
+    const stderr = await new Response(proc.stderr).text()
+    await proc.exited
+
+    if (!stderr.trim()) {
+      return c.json({ instances: [], glabAvailable: false })
+    }
+
+    const instances: { host: string; label: string }[] = []
+    for (const line of stderr.split('\n')) {
+      const trimmed = line.trim()
+      if (trimmed && !trimmed.startsWith('✓') && !trimmed.startsWith('✗') && !trimmed.startsWith('•') && !trimmed.includes(' ')) {
+        instances.push({ host: trimmed, label: `GitLab (${trimmed})` })
+      }
+    }
+
+    return c.json({ instances, glabAvailable: true })
+  } catch {
+    return c.json({ instances: [], glabAvailable: false })
+  }
+})
+
+// ---------------------------------------------------------------------------
+// User repos — list repos for authenticated user via glab
+// ---------------------------------------------------------------------------
+
+app.get('/user-repos', async (c) => {
+  const instance = c.req.query('instance') ?? 'gitlab.com'
+  const page = parseInt(c.req.query('page') ?? '1', 10)
+  const perPage = parseInt(c.req.query('per_page') ?? '30', 10)
+  const search = c.req.query('search') ?? ''
+
+  try {
+    const args = ['api', `/projects?membership=true&order_by=last_activity_at&per_page=${perPage}&page=${page}`]
+    if (search) args[1] += `&search=${encodeURIComponent(search)}`
+
+    const proc = Bun.spawn(['glab', ...args, '--hostname', instance], { env: { ...process.env } })
+    const stdout = await new Response(proc.stdout).text()
+    const exitCode = await proc.exited
+
+    if (exitCode !== 0 || !stdout.trim()) {
+      return c.json({ repos: [], glabAvailable: false, page, perPage, total: null, truncated: false })
+    }
+
+    let projects: any[]
+    try {
+      projects = JSON.parse(stdout)
+    } catch {
+      return c.json({ repos: [], glabAvailable: false, page, perPage, total: null, truncated: false })
+    }
+
+    const repos = projects.map((p: any) => ({
+      name: p.name,
+      fullName: p.path_with_namespace,
+      description: p.description ?? null,
+      url: p.web_url,
+      isPrivate: p.visibility === 'private',
+    }))
+
+    return c.json({ repos, glabAvailable: true, page, perPage, total: null, truncated: false })
+  } catch {
+    return c.json({ repos: [], glabAvailable: false, page, perPage, total: null, truncated: false })
+  }
+})
 
 // GET /api/gitlab/validate?path=namespace/project — validate a GitLab project exists
 app.get('/validate', async (c) => {
