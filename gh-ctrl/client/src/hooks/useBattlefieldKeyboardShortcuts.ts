@@ -1,6 +1,7 @@
-import { useEffect, useCallback, useState } from 'react'
+import { useEffect, useCallback, useState, useRef } from 'react'
 import type { DashboardEntry, Building } from '../types'
 import type { Position } from '../components/battlefield/battlefieldConstants'
+import { api } from '../api'
 
 const STORAGE_KEY = 'battlefield-shortcuts'
 
@@ -19,6 +20,7 @@ function loadShortcuts(): ShortcutConfig {
 
 function saveShortcuts(config: ShortcutConfig) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
+  api.putSetting(STORAGE_KEY, JSON.stringify(config)).catch(() => {})
 }
 
 interface UseBattlefieldKeyboardShortcutsOptions {
@@ -35,6 +37,7 @@ interface UseBattlefieldKeyboardShortcutsOptions {
   onToggleTimers: () => void
   onPan: (dx: number, dy: number) => void
   onToggleShortcutsOverlay: () => void
+  onToggleCommandPalette?: () => void
   enabled: boolean
 }
 
@@ -51,11 +54,24 @@ export function useBattlefieldKeyboardShortcuts({
   onToggleTimers,
   onPan,
   onToggleShortcutsOverlay,
+  onToggleCommandPalette,
   onZoomToBase,
   enabled,
 }: UseBattlefieldKeyboardShortcutsOptions) {
   const [shortcuts, setShortcuts] = useState<ShortcutConfig>(loadShortcuts)
   const [assigningFor, setAssigningFor] = useState<{ type: 'base' | 'building'; id: number } | null>(null)
+
+  // Load shortcuts from API (DB) on mount — primary source for portability
+  useEffect(() => {
+    api.getSetting(STORAGE_KEY).then(({ value }) => {
+      if (value !== null) {
+        try {
+          const parsed: ShortcutConfig = JSON.parse(value)
+          setShortcuts(parsed)
+        } catch {}
+      }
+    }).catch(() => {})
+  }, [])
 
   const assignShortcut = useCallback((type: 'base' | 'building', id: number, key: string) => {
     setShortcuts(prev => {
@@ -106,10 +122,10 @@ export function useBattlefieldKeyboardShortcuts({
 
     const onKeyDown = (e: KeyboardEvent) => {
       // Don't fire if typing in an input/textarea
-      const tag = (e.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable || target.getAttribute?.('contenteditable') === 'true') return
       // Don't fire if a modal/dialog is open
-      if ((e.target as HTMLElement).closest('.modal-overlay, .map-dialog-overlay, [class*="dialog"], [class*="overlay"]')) return
+      if (target.closest?.('.modal-overlay, .map-dialog-overlay, [class*="dialog"], [class*="overlay"]')) return
 
       // Handle assignment mode
       if (assigningFor) {
@@ -123,6 +139,13 @@ export function useBattlefieldKeyboardShortcuts({
         e.preventDefault()
         const key = e.key.toLowerCase()
         assignShortcut(assigningFor.type, assigningFor.id, key)
+        return
+      }
+
+      // Ctrl+K / Cmd+K — Command Palette
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        onToggleCommandPalette?.()
         return
       }
 
@@ -218,7 +241,7 @@ export function useBattlefieldKeyboardShortcuts({
   }, [
     enabled, assigningFor, shortcuts, entries, buildings, positions, buildingPositions,
     onZoomIn, onZoomOut, onZoomReset, onZoomToBase, onScan, onToggleFeed, onToggleTimers,
-    onPan, onToggleShortcutsOverlay, assignShortcut,
+    onPan, onToggleShortcutsOverlay, onToggleCommandPalette, assignShortcut,
   ])
 
   return { shortcuts, assigningFor, startAssigning, cancelAssigning, clearShortcut, assignShortcut }

@@ -373,8 +373,66 @@ export interface MailMessage {
   fetchedAt: string | number | null
 }
 
+export interface ResearchCenterConfig {
+  repo: string
+  configured: boolean
+}
+
+export interface ResearchJob {
+  number: number
+  title: string
+  state: string
+  labels: { name: string; color: string }[]
+  url: string
+  createdAt: string
+}
+
 export interface BattlefieldUser {
   login: string
   avatarUrl: string
   lastRepoId?: number
 }
+
+export interface Contact {
+  id: number
+  username: string
+  email: string
+  displayName: string | null
+  notes: string | null
+  createdAt: string | number | null
+  updatedAt: string | number | null
+}
+
+export interface RemoteShellConfig {
+  configured: boolean
+  defaultConnectionId?: number
+  fontFamily?: string
+  fontSize?: number
+  theme?: 'dark' | 'dracula' | 'solarized'
+}
+
+export interface SshConnection {
+  id: number
+  buildingId: number
+  label: string
+  host: string
+  port: number | null
+  username: string
+  authType: string | null
+  hasCredentials: boolean
+  tmuxSession: string | null
+  createdAt: string | number | null
+  updatedAt: string | number | null
+}
+
+export interface SshSessionLog {
+  id: number
+  buildingId: number
+  connectionId: number | null
+  connectionLabel: string | null
+  connectedAt: string | number | null
+  disconnectedAt: string | number | null
+  durationMs: number | null
+}
+
+export type ShellStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error'

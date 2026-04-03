@@ -112,6 +112,12 @@ export const mailMessages = sqliteTable('mail_messages', {
   fetchedAt:    integer('fetched_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 })
 
+export const settings = sqliteTable('settings', {
+  key:       text('key').primaryKey(),
+  value:     text('value').notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+})
+
 export const mailFolders = sqliteTable('mail_folders', {
   id:          integer('id').primaryKey({ autoIncrement: true }),
   buildingId:  integer('building_id').notNull().references(() => buildings.id, { onDelete: 'cascade' }),
@@ -121,4 +127,40 @@ export const mailFolders = sqliteTable('mail_folders', {
   unreadCount: integer('unread_count').notNull().default(0),
   delimiter:   text('delimiter').notNull().default('/'),
   syncedAt:    integer('synced_at'),
+})
+
+export const contacts = sqliteTable('contacts', {
+  id:          integer('id').primaryKey({ autoIncrement: true }),
+  username:    text('username').notNull().unique(),
+  email:       text('email').notNull(),
+  displayName: text('display_name'),
+  notes:       text('notes').default(''),
+  createdAt:   integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt:   integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+})
+
+// SSH connection profiles for RemotePost buildings
+export const sshConnections = sqliteTable('ssh_connections', {
+  id:             integer('id').primaryKey({ autoIncrement: true }),
+  buildingId:     integer('building_id').notNull().references(() => buildings.id, { onDelete: 'cascade' }),
+  label:          text('label').notNull(),
+  host:           text('host').notNull(),
+  port:           integer('port').default(22),
+  username:       text('username').notNull(),
+  authType:       text('auth_type').default('password'), // 'password' | 'key'
+  encryptedCreds: text('encrypted_creds'),               // AES-256-GCM encrypted JSON
+  tmuxSession:    text('tmux_session'),                  // null = no tmux, string = session name
+  createdAt:      integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt:      integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+})
+
+// Audit log for SSH connects / disconnects
+export const sshSessionLog = sqliteTable('ssh_session_log', {
+  id:              integer('id').primaryKey({ autoIncrement: true }),
+  buildingId:      integer('building_id').notNull().references(() => buildings.id, { onDelete: 'cascade' }),
+  connectionId:    integer('connection_id'),              // FK to sshConnections (nullable if deleted)
+  connectionLabel: text('connection_label'),              // snapshot of label at connect time
+  connectedAt:     integer('connected_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  disconnectedAt:  integer('disconnected_at', { mode: 'timestamp' }),
+  durationMs:      integer('duration_ms'),
 })
