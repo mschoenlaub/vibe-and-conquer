@@ -269,13 +269,17 @@ export function ClawComBuilding({
             right: 2,
             width: 8,
             height: 8,
-            borderRadius: config.clawType === 'claudechannel' ? '2px' : '50%',
+            borderRadius: config.clawType === 'claudechannel' || config.clawType === 'copilot' ? '2px' : '50%',
             background: isConfigured
-              ? config.clawType === 'claudechannel' ? '#a78bfa' : 'var(--green-neon)'
+              ? config.clawType === 'claudechannel' ? '#a78bfa'
+              : config.clawType === 'copilot' ? '#4493f8'
+              : 'var(--green-neon)'
               : '#888',
             border: '1px solid var(--bg-darker)',
           }} title={isConfigured
-            ? config.clawType === 'claudechannel' ? 'Claude Channel active' : 'Connected'
+            ? config.clawType === 'claudechannel' ? 'Claude Channel active'
+            : config.clawType === 'copilot' ? 'GitHub Copilot active'
+            : 'Connected'
             : 'Not configured'
           } />
         </div>
@@ -300,6 +304,8 @@ export function ClawComBuilding({
           {isConfigured
             ? config.clawType === 'claudechannel'
               ? '✦ CLAUDE ● ACTIVE'
+              : config.clawType === 'copilot'
+              ? '◎ COPILOT ● ACTIVE'
               : `${config.clawType?.toUpperCase() ?? 'CLAW'} ● ONLINE`
             : '⚙ SETUP REQUIRED'}
         </div>

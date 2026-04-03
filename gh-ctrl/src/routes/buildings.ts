@@ -185,6 +185,48 @@ app.post('/:id/messages', async (c) => {
       } catch {
         // MCP server not reachable — message stored locally anyway
       }
+    } else if (config.clawType === 'copilot' && config.githubToken) {
+      // GitHub Copilot: OpenAI-compatible chat completions API
+      try {
+        const history = (await db.select().from(clawcomMessages)
+          .where(eq(clawcomMessages.buildingId, id))
+          .orderBy(desc(clawcomMessages.id))
+          .limit(20))
+          .reverse()
+
+        const messages = history.map((m) => ({
+          role: m.direction === 'out' ? 'user' as const : 'assistant' as const,
+          content: m.content,
+        }))
+
+        const response = await fetch('https://api.githubcopilot.com/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${config.githubToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: config.copilotModel || 'gpt-4o',
+            messages,
+            stream: false,
+          }),
+          signal: AbortSignal.timeout(30000),
+        })
+
+        if (response.ok) {
+          const data = await response.json().catch(() => null)
+          const replyContent = data?.choices?.[0]?.message?.content
+          if (replyContent) {
+            await db.insert(clawcomMessages).values({
+              buildingId: id,
+              direction: 'in',
+              content: String(replyContent),
+            })
+          }
+        }
+      } catch {
+        // Copilot API not reachable — message stored locally anyway
+      }
     } else if (config.host) {
       // OpenClaw / NanoClaw: POST to {host}/message and expect an immediate reply
       try {
@@ -327,6 +369,36 @@ app.post('/:id/permission', async (c) => {
     return c.json(data, resp.status as any)
   } catch {
     return c.json({ error: 'MCP server not reachable' }, 503)
+  }
+})
+
+// POST /copilot-test — verify a GitHub token has Copilot API access and optionally validate model
+app.post('/copilot-test', async (c) => {
+  const body = await c.req.json()
+  const { githubToken, copilotModel } = body
+  if (!githubToken) return c.json({ ok: false, error: 'githubToken required' }, 400)
+
+  try {
+    const res = await fetch('https://api.githubcopilot.com/models', {
+      headers: {
+        'Authorization': `Bearer ${String(githubToken)}`,
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return c.json({ ok: false, error: `HTTP ${res.status}` })
+
+    if (copilotModel) {
+      const data = await res.json().catch(() => null)
+      const available: string[] = (data?.data ?? []).map((m: any) => m.id)
+      if (available.length > 0 && !available.includes(String(copilotModel))) {
+        return c.json({ ok: false, error: `Model '${copilotModel}' not available (available: ${available.join(', ')})` })
+      }
+    }
+
+    return c.json({ ok: true })
+  } catch (err: any) {
+    return c.json({ ok: false, error: err.message })
   }
 })
 

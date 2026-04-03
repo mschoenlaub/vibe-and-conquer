@@ -454,6 +454,12 @@ export const api = {
       body: JSON.stringify(params),
     }),
 
+  copilotTest: (githubToken: string, copilotModel?: string) =>
+    request<{ ok: boolean; error?: string }>('/buildings/copilot-test', {
+      method: 'POST',
+      body: JSON.stringify({ githubToken, copilotModel }),
+    }),
+
   // ── GitLab API methods ──────────────────────────────────────────────────────
 
   getGitLabRepoData: (fullName: string) =>
