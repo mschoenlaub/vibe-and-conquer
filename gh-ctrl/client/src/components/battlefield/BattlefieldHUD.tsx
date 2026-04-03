@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { DashboardEntry, GameMap } from '../../types'
 import { CloseIcon, RelocateIcon, ScanIcon, BuildIcon, MapIcon, FeedIcon } from '../Icons'
 import { ZOOM_MIN, ZOOM_MAX } from './battlefieldConstants'
@@ -16,6 +17,7 @@ interface BattlefieldHUDProps {
   showFeedPanel: boolean
   showBadgeLibrary: boolean
   showTimers: boolean
+  showMinimap: boolean
   onScan: () => void
   onToggleRelocate: () => void
   onShowBuildMenu: () => void
@@ -28,6 +30,7 @@ interface BattlefieldHUDProps {
   onZoomOut: () => void
   onZoomReset: () => void
   onToggleShortcuts: () => void
+  onToggleMinimap: () => void
   showShortcuts: boolean
 }
 
@@ -45,6 +48,7 @@ export function BattlefieldHUD({
   showFeedPanel,
   showBadgeLibrary,
   showTimers,
+  showMinimap,
   onScan,
   onToggleRelocate,
   onShowBuildMenu,
@@ -57,8 +61,11 @@ export function BattlefieldHUD({
   onZoomOut,
   onZoomReset,
   onToggleShortcuts,
+  onToggleMinimap,
   showShortcuts,
 }: BattlefieldHUDProps) {
+  const [showOverflow, setShowOverflow] = useState(false)
+
   return (
     <div className="battlefield-hud">
       <div className="hud-brand">
@@ -105,8 +112,10 @@ export function BattlefieldHUD({
           {isRelocateMode ? <CloseIcon size={10} /> : <RelocateIcon size={11} />}
           <span className="hud-label"> {isRelocateMode ? 'CANCEL' : 'RELOCATE'}</span>
         </button>
+
+        {/* Desktop-only buttons — hidden on mobile via .hud-desktop-only */}
         <button
-          className="hud-btn"
+          className="hud-btn hud-desktop-only"
           onClick={onShowBuildMenu}
           title="Build options (ClawCom, etc.)"
           aria-label="Open build options"
@@ -114,7 +123,7 @@ export function BattlefieldHUD({
           <BuildIcon size={11} /><span className="hud-label"> BUILD</span>
         </button>
         <button
-          className={`hud-btn${showBadgeLibrary ? ' active' : ''}`}
+          className={`hud-btn hud-desktop-only${showBadgeLibrary ? ' active' : ''}`}
           onClick={onToggleBadgeLibrary}
           title="Badge Library — place custom markers on the battlefield"
           aria-label="Open badge library"
@@ -122,9 +131,9 @@ export function BattlefieldHUD({
         >
           ◈<span className="hud-label"> BADGES</span>
         </button>
-        <span className="hud-zoom-sep" />
+        <span className="hud-zoom-sep hud-desktop-only" />
         <button
-          className="hud-btn"
+          className="hud-btn hud-desktop-only"
           onClick={onShowMapSelector}
           title="Load a map from the Map Editor"
         >
@@ -132,7 +141,7 @@ export function BattlefieldHUD({
         </button>
         {activeMap && (
           <button
-            className="hud-btn hud-btn-icon"
+            className="hud-btn hud-btn-icon hud-desktop-only"
             onClick={onClearMap}
             title="Clear loaded map"
           >
@@ -141,7 +150,7 @@ export function BattlefieldHUD({
         )}
         <span className="hud-zoom-sep" />
         <button
-          className={`hud-btn${showFeedPanel ? ' active' : ''}`}
+          className={`hud-btn hud-desktop-only${showFeedPanel ? ' active' : ''}`}
           onClick={onToggleFeed}
           title="Toggle Intel Feed"
           aria-label="Toggle Intel Feed"
@@ -150,7 +159,7 @@ export function BattlefieldHUD({
           <FeedIcon size={11} /><span className="hud-label"> FEED</span>
         </button>
         <button
-          className={`hud-btn${showTimers ? ' active' : ''}`}
+          className={`hud-btn hud-desktop-only${showTimers ? ' active' : ''}`}
           onClick={onToggleTimers}
           title="Mission Timers — Deadline countdown for all maps"
           aria-label="Toggle mission timers"
@@ -163,8 +172,20 @@ export function BattlefieldHUD({
         <span className="hud-zoom-level" title="Click to reset zoom [0]" onClick={onZoomReset} role="button" aria-label={`Current zoom ${Math.round(zoom * 100)}%, click to reset`}>{Math.round(zoom * 100)}%</span>
         <button className="hud-btn hud-zoom-btn" onClick={onZoomIn} disabled={zoom >= ZOOM_MAX} title="Zoom in [+]" aria-label="Zoom in">+</button>
         <span className="hud-zoom-sep" />
+
+        {/* Minimap toggle — visible on all screen sizes */}
         <button
-          className={`hud-btn${showShortcuts ? ' active' : ''}`}
+          className={`hud-btn${showMinimap ? ' active' : ''}`}
+          onClick={onToggleMinimap}
+          title={showMinimap ? 'Hide minimap' : 'Show minimap'}
+          aria-label="Toggle minimap"
+          aria-pressed={showMinimap}
+        >
+          &#x25A1;<span className="hud-label"> MAP</span>
+        </button>
+
+        <button
+          className={`hud-btn hud-desktop-only${showShortcuts ? ' active' : ''}`}
           onClick={onToggleShortcuts}
           title="Keyboard Shortcuts [?]"
           aria-label="Toggle keyboard shortcuts overlay"
@@ -172,6 +193,42 @@ export function BattlefieldHUD({
         >
           ⌨<span className="hud-label"> KEYS</span>
         </button>
+
+        {/* Mobile overflow menu — visible only on mobile */}
+        <div className="hud-overflow-wrap hud-mobile-only">
+          <button
+            className={`hud-btn${showOverflow ? ' active' : ''}`}
+            onClick={(e) => { e.stopPropagation(); setShowOverflow(v => !v) }}
+            title="More options"
+            aria-label="More HUD options"
+          >
+            &#x22EF;
+          </button>
+          {showOverflow && (
+            <div className="hud-overflow-panel" onClick={(e) => e.stopPropagation()}>
+              <button className="hud-btn hud-overflow-item" onClick={() => { setShowOverflow(false); onShowBuildMenu() }}>
+                <BuildIcon size={11} /> BUILD
+              </button>
+              <button className={`hud-btn hud-overflow-item${showBadgeLibrary ? ' active' : ''}`} onClick={() => { setShowOverflow(false); onToggleBadgeLibrary() }}>
+                ◈ BADGES
+              </button>
+              <button className="hud-btn hud-overflow-item" onClick={() => { setShowOverflow(false); onShowMapSelector() }}>
+                <MapIcon size={11} /> {activeMap ? activeMap.name : 'MAP'}
+              </button>
+              {activeMap && (
+                <button className="hud-btn hud-overflow-item" onClick={() => { setShowOverflow(false); onClearMap() }}>
+                  <CloseIcon size={9} /> CLEAR MAP
+                </button>
+              )}
+              <button className={`hud-btn hud-overflow-item${showFeedPanel ? ' active' : ''}`} onClick={() => { setShowOverflow(false); onToggleFeed() }}>
+                <FeedIcon size={11} /> FEED
+              </button>
+              <button className={`hud-btn hud-overflow-item${showTimers ? ' active' : ''}`} onClick={() => { setShowOverflow(false); onToggleTimers() }}>
+                ⏱ TIMERS
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

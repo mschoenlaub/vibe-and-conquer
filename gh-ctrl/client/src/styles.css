@@ -5895,3 +5895,407 @@ select.input {
   letter-spacing: 0.5px;
   flex-shrink: 0;
 }
+
+/* ══════════════════════════════════════════════════════════
+   Mobile & Touch — Multi-touch navigation, landscape guard
+   ══════════════════════════════════════════════════════════ */
+
+/* Prevent browser pan/zoom on the battlefield; handled by our touch logic */
+.battlefield-container {
+  touch-action: none;
+}
+
+/* ── HUD: show/hide helpers ── */
+.hud-desktop-only {
+  display: inline-flex;
+}
+.hud-mobile-only {
+  display: none;
+}
+
+/* ── Sidebar hamburger (hidden on desktop) ── */
+.sidebar-hamburger {
+  display: none;
+}
+
+/* ── Sidebar backdrop (hidden on desktop) ── */
+.sidebar-backdrop {
+  display: none;
+}
+
+/* ── Long-press Context Menu ── */
+.battlefield-context-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+}
+
+.battlefield-context-menu {
+  position: fixed;
+  z-index: 50;
+  background: rgba(4, 10, 6, 0.97);
+  border: 1px solid rgba(57, 255, 20, 0.5);
+  border-radius: 6px;
+  padding: 6px;
+  min-width: 170px;
+  font-family: var(--font-mono);
+  box-shadow: 0 0 24px rgba(57, 255, 20, 0.2), 0 4px 16px rgba(0,0,0,0.8);
+  transform: translate(-50%, -50%);
+}
+
+.bcm-header {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--crt-green, #39ff14);
+  text-shadow: 0 0 6px var(--crt-green, #39ff14);
+  padding: 2px 6px 6px;
+  border-bottom: 1px solid rgba(57, 255, 20, 0.2);
+  margin-bottom: 4px;
+}
+
+.bcm-btn {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--crt-green, #39ff14);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  text-align: left;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.12s;
+  min-height: 36px;
+}
+
+.bcm-btn:hover,
+.bcm-btn:active {
+  background: rgba(57, 255, 20, 0.1);
+}
+
+.bcm-btn-primary {
+  color: var(--green-neon, #39ff14);
+  font-weight: 600;
+}
+
+.bcm-btn-cancel {
+  color: var(--text-2, #4dcc00);
+  margin-top: 4px;
+  border-top: 1px solid rgba(57, 255, 20, 0.15);
+}
+
+/* ── Mobile placement hint (crosshair + label) ── */
+.mobile-placement-hint {
+  display: none;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 15;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mph-crosshair {
+  width: 48px;
+  height: 48px;
+  border: 2px dashed rgba(57, 255, 20, 0.8);
+  border-radius: 50%;
+  box-shadow: 0 0 16px rgba(57, 255, 20, 0.4);
+  animation: mph-pulse 1.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes mph-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.6; }
+}
+
+.mph-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--crt-green, #39ff14);
+  text-shadow: 0 0 8px var(--crt-green, #39ff14);
+  background: rgba(4, 10, 6, 0.85);
+  padding: 6px 14px;
+  border: 1px solid rgba(57, 255, 20, 0.4);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.mph-cancel {
+  pointer-events: all;
+  background: rgba(248, 81, 73, 0.15);
+  border: 1px solid rgba(248, 81, 73, 0.5);
+  color: #f85149;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* ── Landscape orientation overlay ── */
+.battlefield-landscape-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 10, 6, 0.97);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  font-family: var(--font-mono);
+  text-align: center;
+  padding: 24px;
+}
+
+.blo-icon {
+  font-size: 48px;
+  color: var(--crt-green, #39ff14);
+  text-shadow: 0 0 20px var(--crt-green, #39ff14);
+  animation: blo-spin 2s linear infinite;
+}
+
+@keyframes blo-spin {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(90deg); }
+  50% { transform: rotate(90deg); }
+  100% { transform: rotate(90deg); }
+}
+
+.blo-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--crt-green, #39ff14);
+  text-shadow: 0 0 12px var(--crt-green, #39ff14);
+}
+
+.blo-sub {
+  font-size: 12px;
+  color: var(--text-2, #4dcc00);
+  letter-spacing: 0.5px;
+  line-height: 1.6;
+}
+
+/* ── HUD Overflow Panel (mobile) ── */
+.hud-overflow-wrap {
+  position: relative;
+}
+
+.hud-overflow-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: rgba(4, 10, 6, 0.98);
+  border: 1px solid rgba(57, 255, 20, 0.4);
+  border-radius: 6px;
+  padding: 4px;
+  min-width: 140px;
+  z-index: 30;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hud-overflow-item {
+  width: 100%;
+  justify-content: flex-start !important;
+  padding: 8px 10px !important;
+  font-size: 10px !important;
+  min-height: 36px;
+}
+
+/* ── MapEditor mobile block ── */
+.map-editor-mobile-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 16px;
+  text-align: center;
+  padding: 32px 24px;
+  font-family: var(--font-mono);
+}
+
+.meb-icon {
+  font-size: 40px;
+  color: var(--crt-green, #39ff14);
+  text-shadow: 0 0 12px var(--crt-green, #39ff14);
+}
+
+.meb-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--crt-green, #39ff14);
+  text-shadow: 0 0 8px var(--crt-green, #39ff14);
+}
+
+.meb-sub {
+  font-size: 12px;
+  color: var(--text-2, #4dcc00);
+  line-height: 1.7;
+  max-width: 320px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Responsive overrides for mobile (≤ 480px)
+   ══════════════════════════════════════════════════════════ */
+
+@media (max-width: 480px) {
+  /* Touch targets: all HUD buttons at least 44×44px */
+  .hud-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 4px 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Show/hide mobile vs desktop HUD elements */
+  .hud-desktop-only {
+    display: none !important;
+  }
+  .hud-mobile-only {
+    display: inline-flex;
+  }
+
+  /* Show placement hint on mobile */
+  .mobile-placement-hint {
+    display: flex;
+  }
+
+  /* Show landscape overlay when in portrait */
+  .battlefield-landscape-overlay {
+    display: flex;
+  }
+
+  /* Sidebar: full-screen drawer */
+  :root {
+    --sidebar-width: 0px;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: -260px;
+    top: 0;
+    height: 100vh;
+    width: 240px;
+    z-index: 1001;
+    transition: left 0.25s ease;
+    padding: 16px 16px 20px;
+    gap: 20px;
+    align-items: flex-start;
+    overflow: hidden auto;
+  }
+
+  .sidebar.sidebar-open {
+    left: 0;
+    box-shadow: 4px 0 32px rgba(0, 0, 0, 0.8);
+  }
+
+  .sidebar-logo-img {
+    width: 120px;
+    height: 120px;
+  }
+
+  .nav-label {
+    display: inline !important;
+  }
+
+  .nav-icon {
+    font-size: 14px;
+  }
+
+  .sidebar-stats,
+  .sidebar-status,
+  .sidebar-version {
+    display: flex !important;
+  }
+
+  /* Backdrop */
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+  }
+
+  /* Hamburger button in top-left */
+  .sidebar-hamburger {
+    display: flex;
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 999;
+    background: rgba(4, 10, 6, 0.92);
+    border: 1px solid rgba(57, 255, 20, 0.4);
+    color: var(--crt-green, #39ff14);
+    font-size: 16px;
+    padding: 6px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    min-height: 44px;
+    min-width: 44px;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  /* Main content takes full width since sidebar is off-canvas */
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  /* Minimap repositioning to not overlap mobile chrome */
+  .minimap {
+    bottom: 16px;
+    right: 8px;
+  }
+
+  /* Place banners above minimap area */
+  .battlefield-placement-banner,
+  .battlefield-relocate-banner {
+    bottom: 70px;
+    font-size: 10px;
+  }
+
+  /* Zoom bubble: bigger touch target */
+  .hud-zoom-btn {
+    min-height: 44px;
+    min-width: 44px;
+    font-size: 18px;
+    font-weight: 600;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   Tablet responsive (481–768px): show mobile-only elements
+   too for touch interactions, but keep sidebar
+   ══════════════════════════════════════════════════════════ */
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .battlefield-landscape-overlay {
+    display: flex;
+  }
+
+  .hud-btn {
+    min-height: 36px;
+    min-width: 36px;
+  }
+}
+
