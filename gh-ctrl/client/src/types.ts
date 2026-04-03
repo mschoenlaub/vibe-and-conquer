@@ -122,6 +122,8 @@ export interface RepoData {
   branches: Branch[]
   defaultBranch: string
   hasClaudeYml: boolean
+  hasPleaseRelease: boolean
+  hasCodeRabbit: boolean
   error: string | null
 }
 

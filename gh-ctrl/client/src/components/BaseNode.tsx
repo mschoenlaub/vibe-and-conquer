@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import type { DashboardEntry, GHPR, GHIssue, Branch, WorkflowRun, RepoMeta } from '../types'
 import { getPROrigin, getRepoUrl, getMRLabel } from '../types'
 import type { ModalState } from './ActionModal'
-import { CloseIcon, LinkIcon, LabelIcon, CommentIcon, RefreshIcon, ExternalLinkIcon, AssigneeIcon, CopyIcon } from './Icons'
+import { CloseIcon, LinkIcon, LabelIcon, CommentIcon, RefreshIcon, ExternalLinkIcon, AssigneeIcon, CopyIcon, ClaudeWorkflowIcon, ReleasePleaseIcon, CodeRabbitIcon } from './Icons'
 import { api } from '../api'
 import { BranchSilo } from './BranchBuilding'
 import { useAppStore } from '../store'
@@ -310,6 +310,27 @@ export function BaseNode({ entry, position, isRelocateMode, isBeingRelocated, on
             : <IsoBaseBuilding color={repo.color || '#00ff88'} />
           }
         </div>
+
+        {/* Setup indicators — small icons showing which integrations are configured */}
+        {(data.hasClaudeYml || data.hasPleaseRelease || data.hasCodeRabbit) && (
+          <div className="base-setup-indicators">
+            {data.hasClaudeYml && (
+              <span className="setup-indicator si-claude" title="Claude Code Workflow configured">
+                <ClaudeWorkflowIcon size={10} />
+              </span>
+            )}
+            {data.hasPleaseRelease && (
+              <span className="setup-indicator si-release" title="Release Please configured">
+                <ReleasePleaseIcon size={10} />
+              </span>
+            )}
+            {data.hasCodeRabbit && (
+              <span className="setup-indicator si-coderabbit" title="CodeRabbit configured">
+                <CodeRabbitIcon size={10} />
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Floating HUD toolbar — appears on hover */}
         <div className="base-hud">

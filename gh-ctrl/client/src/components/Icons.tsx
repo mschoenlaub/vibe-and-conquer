@@ -205,3 +205,40 @@ export function GitLabIcon({ size = 16, className, title }: IconProps) {
     </svg>
   )
 }
+
+export function ClaudeWorkflowIcon({ size = 12, className, title }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden={!title} role={title ? 'img' : undefined}>
+      {title && <title>{title}</title>}
+      <rect x="3" y="5" width="10" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="6" cy="9" r="1" fill="currentColor" />
+      <circle cx="10" cy="9" r="1" fill="currentColor" />
+      <line x1="6.5" y1="11" x2="9.5" y2="11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="8" y1="2" x2="8" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="8" cy="2" r="0.8" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function ReleasePleaseIcon({ size = 12, className, title }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden={!title} role={title ? 'img' : undefined}>
+      {title && <title>{title}</title>}
+      <path d="M2 2h5.5l6.5 6.5-5.5 5.5L2 7.5V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <circle cx="5.5" cy="5.5" r="1.2" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function CodeRabbitIcon({ size = 12, className, title }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden={!title} role={title ? 'img' : undefined}>
+      {title && <title>{title}</title>}
+      <path d="M5.5 7.5V3.5C5.5 2.5 4 2 4 3.5V6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10.5 7.5V3.5C10.5 2.5 12 2 12 3.5V6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <ellipse cx="8" cy="10.5" rx="4" ry="3.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="6.5" cy="10" r="0.8" fill="currentColor" />
+      <circle cx="9.5" cy="10" r="0.8" fill="currentColor" />
+    </svg>
+  )
+}
