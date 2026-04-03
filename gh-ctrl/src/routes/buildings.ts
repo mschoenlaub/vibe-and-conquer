@@ -188,10 +188,11 @@ app.post('/:id/messages', async (c) => {
     } else if (config.clawType === 'copilot' && config.githubToken) {
       // GitHub Copilot: OpenAI-compatible chat completions API
       try {
-        const history = await db.select().from(clawcomMessages)
+        const history = (await db.select().from(clawcomMessages)
           .where(eq(clawcomMessages.buildingId, id))
-          .orderBy(asc(clawcomMessages.id))
-          .limit(20)
+          .orderBy(desc(clawcomMessages.id))
+          .limit(20))
+          .reverse()
 
         const messages = history.map((m) => ({
           role: m.direction === 'out' ? 'user' as const : 'assistant' as const,
@@ -371,10 +372,10 @@ app.post('/:id/permission', async (c) => {
   }
 })
 
-// POST /copilot-test — verify a GitHub token has Copilot API access
+// POST /copilot-test — verify a GitHub token has Copilot API access and optionally validate model
 app.post('/copilot-test', async (c) => {
   const body = await c.req.json()
-  const { githubToken } = body
+  const { githubToken, copilotModel } = body
   if (!githubToken) return c.json({ ok: false, error: 'githubToken required' }, 400)
 
   try {
@@ -385,8 +386,17 @@ app.post('/copilot-test', async (c) => {
       },
       signal: AbortSignal.timeout(8000),
     })
-    if (res.ok) return c.json({ ok: true })
-    return c.json({ ok: false, error: `HTTP ${res.status}` })
+    if (!res.ok) return c.json({ ok: false, error: `HTTP ${res.status}` })
+
+    if (copilotModel) {
+      const data = await res.json().catch(() => null)
+      const available: string[] = (data?.data ?? []).map((m: any) => m.id)
+      if (available.length > 0 && !available.includes(String(copilotModel))) {
+        return c.json({ ok: false, error: `Model '${copilotModel}' not available (available: ${available.join(', ')})` })
+      }
+    }
+
+    return c.json({ ok: true })
   } catch (err: any) {
     return c.json({ ok: false, error: err.message })
   }

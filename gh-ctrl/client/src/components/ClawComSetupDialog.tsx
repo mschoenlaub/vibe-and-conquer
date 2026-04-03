@@ -22,7 +22,8 @@ export function ClawComSetupDialog({ building, onClose, onConfigured, onError }:
   const [mcpWebhookUrl, setMcpWebhookUrl] = useState(existingConfig.mcpWebhookUrl ?? 'http://localhost:8788')
   const [channelSecret, setChannelSecret] = useState(existingConfig.channelSecret ?? '')
   const [enablePermissionRelay, setEnablePermissionRelay] = useState(existingConfig.enablePermissionRelay ?? false)
-  const [githubToken, setGithubToken] = useState(existingConfig.githubToken ?? '')
+  const hasExistingToken = Boolean(existingConfig.githubToken)
+  const [githubToken, setGithubToken] = useState('')
   const [copilotModel, setCopilotModel] = useState(existingConfig.copilotModel ?? 'gpt-4o')
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -33,7 +34,7 @@ export function ClawComSetupDialog({ building, onClose, onConfigured, onError }:
 
   async function handleSave() {
     if (isCopilot) {
-      if (!githubToken.trim()) {
+      if (!githubToken.trim() && !hasExistingToken) {
         onError('GitHub Token is required')
         return
       }
@@ -56,7 +57,7 @@ export function ClawComSetupDialog({ building, onClose, onConfigured, onError }:
             clawType,
             host: '',
             configured: true,
-            githubToken: githubToken.trim(),
+            githubToken: githubToken.trim() || existingConfig.githubToken,
             copilotModel: copilotModel || 'gpt-4o',
           }
         : isChannel
@@ -106,13 +107,7 @@ export function ClawComSetupDialog({ building, onClose, onConfigured, onError }:
     setTesting(true)
     setTestResult(null)
     try {
-      const res = await fetch('/api/buildings/copilot-test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ githubToken: githubToken.trim() }),
-        signal: AbortSignal.timeout(10000),
-      })
-      const data = await res.json()
+      const data = await api.copilotTest(githubToken.trim(), copilotModel || 'gpt-4o')
       if (data.ok) {
         setTestResult('✓ Token valid — Copilot API reachable!')
       } else {
@@ -169,7 +164,7 @@ export function ClawComSetupDialog({ building, onClose, onConfigured, onError }:
                       type="password"
                       value={githubToken}
                       onChange={(e) => setGithubToken(e.target.value)}
-                      placeholder="ghp_..."
+                      placeholder={hasExistingToken ? '●●●●●●●● (leave blank to keep existing)' : 'ghp_...'}
                     />
                     <button
                       className="hud-btn"
