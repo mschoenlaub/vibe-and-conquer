@@ -51,8 +51,8 @@ export function BattlefieldView() {
   const tapCallbackRef = useRef<((x: number, y: number) => void) | undefined>(undefined)
   const longPressCallbackRef = useRef<((x: number, y: number) => void) | undefined>(undefined)
   const camera = useBattlefieldCamera({
-    onTap: useCallback((x, y) => tapCallbackRef.current?.(x, y), []),
-    onLongPress: useCallback((x, y) => longPressCallbackRef.current?.(x, y), []),
+    onTap: useCallback((x: number, y: number) => tapCallbackRef.current?.(x, y), []),
+    onLongPress: useCallback((x: number, y: number) => longPressCallbackRef.current?.(x, y), []),
   })
   const { offset, setOffset, zoom, isDraggingMap, setIsDraggingMap, dragStart, setDragStart, zoomRef, offsetRef, containerRef, handleZoomIn, handleZoomOut, handleZoomReset, handleZoomToBase } = camera
 

@@ -6289,6 +6289,10 @@ select.input {
    ══════════════════════════════════════════════════════════ */
 
 @media (min-width: 481px) and (max-width: 768px) {
+  .battlefield-landscape-overlay {
+    display: flex;
+  }
+
   .hud-btn {
     min-height: 36px;
     min-width: 36px;
