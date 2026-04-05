@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0](https://github.com/svengraziani/vibe-and-conquer/compare/v1.1.0...v1.2.0) (2026-04-03)
+
+
+### ### Added
+
+* add contact management with username→email mapping and avatar fallback ([bf6ea99](https://github.com/svengraziani/vibe-and-conquer/commit/bf6ea99e0dc1ae92335e313015f52cbb79ebbcbe))
+* add contact management with username→email mapping and avatar fallback ([440dcee](https://github.com/svengraziani/vibe-and-conquer/commit/440dcee6196d96ee041dde3e4161ae6e865bdcc0)), closes [#305](https://github.com/svengraziani/vibe-and-conquer/issues/305)
+* add GitHub Copilot as fourth ClawCom claw type ([#321](https://github.com/svengraziani/vibe-and-conquer/issues/321)) ([b286e54](https://github.com/svengraziani/vibe-and-conquer/commit/b286e542d0e3bb5f5d9721eaff8198eb6bd9c991))
+* Add GitHub Copilot Chat integration to ClawCom ([bcb3ac1](https://github.com/svengraziani/vibe-and-conquer/commit/bcb3ac140b8832e3ec6bc20746132db89da14712))
+* add keyboard shortcuts to battlefield ([b8f0dfc](https://github.com/svengraziani/vibe-and-conquer/commit/b8f0dfcf61b8fe8f0410b3a3a634876a470f0c64))
+* add keyboard shortcuts to battlefield ([0222a31](https://github.com/svengraziani/vibe-and-conquer/commit/0222a31760ad62f9161a7bbe6e17a22c80057af8)), closes [#300](https://github.com/svengraziani/vibe-and-conquer/issues/300)
+* **APM:** add Command Palette, tests, and accessibility enhancements ([cb76c4d](https://github.com/svengraziani/vibe-and-conquer/commit/cb76c4d7e3d126235d839aafee04dd0f8ed11381))
+* default maps shipped with the application ([58a4bc6](https://github.com/svengraziani/vibe-and-conquer/commit/58a4bc6c4695e248a291be4c786ada7881fb79e8))
+* migrate localStorage customizations to SQLite database ([03c1850](https://github.com/svengraziani/vibe-and-conquer/commit/03c185091bc6920b5ff9c14d893cb317ef75166f))
+* migrate localStorage customizations to SQLite database ([89f7bf3](https://github.com/svengraziani/vibe-and-conquer/commit/89f7bf3642848745c96fa8d43a46ea16d9b0685d)), closes [#303](https://github.com/svengraziani/vibe-and-conquer/issues/303)
+* mobile responsive + multi-touch navigation ([d68f86b](https://github.com/svengraziani/vibe-and-conquer/commit/d68f86bd2472602a0362f51bdf1f14e23b6eb86e))
+* **mobile:** multi-touch navigation, landscape guard, HUD overflow, minimap toggle ([165224d](https://github.com/svengraziani/vibe-and-conquer/commit/165224de22867804b44923246c56d32fd7ee87be))
+* RemotePost — complete all 4 phases ([#308](https://github.com/svengraziani/vibe-and-conquer/issues/308)) ([795b22a](https://github.com/svengraziani/vibe-and-conquer/commit/795b22a6c1b6548a72c0821fb23065a81e60c984))
+* RemotePost SSH/TMux/Terminal building — complete all 4 phases ([#308](https://github.com/svengraziani/vibe-and-conquer/issues/308)) ([3ce7df0](https://github.com/svengraziani/vibe-and-conquer/commit/3ce7df0c03aedda39b1f8745638549191945bbdc))
+* Research Center building (no DB, GitHub Issues API) ([6cc7fd0](https://github.com/svengraziani/vibe-and-conquer/commit/6cc7fd096da3cc46e9234f606520e9701ee1daf0)), closes [#314](https://github.com/svengraziani/vibe-and-conquer/issues/314)
+* Research Center building (no DB) ([bb7e0e1](https://github.com/svengraziani/vibe-and-conquer/commit/bb7e0e13ab77124e29c18507183ac1ee9b7606bd))
+* seed default maps on startup when no maps exist ([dbe3d23](https://github.com/svengraziani/vibe-and-conquer/commit/dbe3d23d789cee598ccfd6b9a60f92925cd93bec))
+* use SVG icons for repo setup indicators ([635452a](https://github.com/svengraziani/vibe-and-conquer/commit/635452a1da7c1435bcb3fd19b68cbd41dc73d5f5))
+* use SVG icons for repo setup indicators ([f84a2b3](https://github.com/svengraziani/vibe-and-conquer/commit/f84a2b3a85350af6c50bc3266b110a2bb7f5b249))
+
+
+### ### Fixed
+
+* address CodeRabbit review findings on Copilot ClawCom integration ([b48cbc6](https://github.com/svengraziani/vibe-and-conquer/commit/b48cbc6a21cef6ada8a921ce548775a2c94f9d6c))
+* include hasPleaseRelease and hasCodeRabbit in error fallback path ([8b01162](https://github.com/svengraziani/vibe-and-conquer/commit/8b0116225fad5a0909d59784a6a8634bdd50238f))
+* **mobile:** scope viewport zoom, type touch callbacks, fix overlay selectors and CSS ([43b4159](https://github.com/svengraziani/vibe-and-conquer/commit/43b41595ab77622fce034a6506bdfffef173569d))
+* **tests:** resolve JSDOM compatibility issues in keyboard shortcuts and CommandPalette ([d2bfea6](https://github.com/svengraziani/vibe-and-conquer/commit/d2bfea6b48b59074d7b502047f568cf11abda593))
+* **tests:** use setAttribute for contentEditable in JSDOM test ([444b9e1](https://github.com/svengraziani/vibe-and-conquer/commit/444b9e14bcfc4f662007671d2d2ee4456ac3264c))
+
 ## [1.1.0](https://github.com/svengraziani/vibe-and-conquer/compare/v1.0.0...v1.1.0) (2026-03-28)
 
 
